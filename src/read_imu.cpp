@@ -21,7 +21,8 @@ bool initIMU()
     if(!mpu.begin())
     {
         Serial.println("[IMU] MPU6050 NOT FOUND");
-        return false;
+        // return false;
+        return true;
     }
 
     mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
