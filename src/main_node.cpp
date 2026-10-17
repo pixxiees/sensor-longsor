@@ -62,6 +62,9 @@ void loop()
 
     IMUData imu = readIMU();
 
+    float vbat = (analogRead(1) / 4095.0) * 3.3 * 3.2;
+    Serial.printf("Baterai: %.2f V\r\n", vbat);
+
     // Serial.print("AX : ");
     // Serial.println(imu.ax);
 
@@ -97,6 +100,8 @@ void loop()
         String(imu.roll,2) + "," +
         String(imu.pitch,2) + "," +
         String(soil,1);
+        String(imu.temperature, 2) + "," +
+        String(vbat, 2);
 
     // int statusPinFisik = digitalRead(6);
     // Serial.printf(">> STATUS VOLTASE PIN 6 MENTAH: %d <<\r\n", statusPinFisik);

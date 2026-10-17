@@ -7,6 +7,7 @@
 void setupWiFi();
 
 // Fungsi untuk mengirim data ke server Flask
-void sendDataToServer(int counter, float roll, float pitch, float rain, float soil);
+// Ubah deklarasi fungsinya menjadi seperti ini
+void sendDataToServer(int counter, float roll, float pitch, int rain, float soil, float temp, float vbat, float rssi, float snr);
 
 #endif

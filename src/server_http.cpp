@@ -34,31 +34,29 @@ void setupWiFi() {
     }
 }
 
-void sendDataToServer(int counter, float roll, float pitch, float rain, float soil) {
+// Sesuaikan fungsi dan payload JSON-nya
+void sendDataToServer(int counter, float roll, float pitch, int rain, float soil, float temp, float vbat, float rssi, float snr) {
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
-        
-        // TAMBAHKAN BARIS INI: Beri waktu tunggu 5 detik (5000 ms)
         http.setTimeout(5000); 
-        
         http.begin(serverName);
         http.addHeader("Content-Type", "application/json");
-
-        http.begin(serverName);
-        http.addHeader("Content-Type", "application/json");
-        
-        // TAMBAHKAN BARIS INI: Paksa server menutup koneksi setelah balas
         http.addHeader("Connection", "close"); 
 
-        // Format data menjadi JSON secara manual
         String jsonPayload = "{";
         jsonPayload += "\"node_id\":\"NODE_1\",";
         jsonPayload += "\"counter\":" + String(counter) + ",";
         jsonPayload += "\"roll\":" + String(roll) + ",";
         jsonPayload += "\"pitch\":" + String(pitch) + ",";
         jsonPayload += "\"rain\":" + String(rain) + ",";
-        jsonPayload += "\"soil_moisture\":" + String(soil);
+        jsonPayload += "\"soil_moisture\":" + String(soil) + ",";
+        jsonPayload += "\"temp\":" + String(temp) + ",";
+        jsonPayload += "\"vbat\":" + String(vbat) + ",";
+        jsonPayload += "\"rssi\":" + String(rssi) + ",";
+        jsonPayload += "\"snr\":" + String(snr);
         jsonPayload += "}";
+
+        // ... sisa kode POST http sama persis seperti sebelumnya ...
 
         Serial.print("[HTTP] Mengirim data... ");
         int httpResponseCode = http.POST(jsonPayload);
