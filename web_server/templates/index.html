@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EWS Tanah Longsor - Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        h1 {
+            color: #800000;
+            border-bottom: 2px solid #800000;
+            padding-bottom: 10px;
+        }
+
+        /* Warna Maroon */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background-color: #800000;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Data Monitoring EWS Tanah Longsor</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Waktu (WIB)</th>
+                <th>Node ID</th>
+                <th>Counter</th>
+                <th>Roll (°)</th>
+                <th>Pitch (°)</th>
+                <th>Curah Hujan (mm)</th>
+                <th>Soil Moisture (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data %}
+            <tr>
+                <td>{{ row['timestamp'] }}</td>
+                <td>{{ row['node_id'] }}</td>
+                <td>{{ row['counter'] }}</td>
+                <td>{{ row['roll'] }}</td>
+                <td>{{ row['pitch'] }}</td>
+                <td>{{ row['rain'] }}</td>
+                <td>{{ row['soil_moisture'] }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7">Belum ada data sensor yang masuk.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <script>
+        // Gunakan JavaScript untuk menarik data baru setiap 3 detik
+        setInterval(() => {
+            // Tambahkan parameter waktu (?t=...) agar browser tidak memakai cache lama
+            const urlBebasCache = window.location.href.split('?')[0] + '?t=' + new Date().getTime();
+
+            fetch(urlBebasCache, { cache: "no-store" }) // Paksa bypass cache
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const tabelBaru = doc.querySelector('tbody').innerHTML;
+
+                    document.querySelector('tbody').innerHTML = tabelBaru;
+                })
+                .catch(err => console.log('Gagal memuat data:', err));
+        }, 3000); 
+    </script>
+</body>
+
+</html>

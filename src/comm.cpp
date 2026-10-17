@@ -39,7 +39,14 @@ bool initLoRa()
         return false;
     }
 
-    radio.setOutputPower(22);
+    // --- PERBAIKAN 1: Wajib untuk Heltec V3 ---
+    // Mengaktifkan saklar fisik antena agar bisa mengirim (TX) dan menerima (RX)
+    radio.setDio2AsRfSwitch(true);
+
+    // --- PERBAIKAN 2: Cegah Saturasi Sinyal ---
+    // Turunkan daya pancar dari 22 menjadi 10 saat pengujian di atas meja
+    // (Bisa dikembalikan ke 22 nanti saat dipasang di lapangan)
+    radio.setOutputPower(15);
 
     Serial.println("SUCCESS");
 

@@ -34,6 +34,11 @@ void setup() {
     
     if (state == RADIOLIB_ERR_NONE) {
         Serial.println("[LoRa] Inisialisasi SUCCESS");
+        
+        // --- PERBAIKAN: WAJIB UNTUK HELTEC V3 ---
+        // Menyalakan saklar fisik antena agar bisa menerima sinyal (RX)
+        radio.setDio2AsRfSwitch(true);
+        
     } else {
         Serial.printf("[LoRa] FAILED, code = %d\n", state);
         while (true) { delay(500); }

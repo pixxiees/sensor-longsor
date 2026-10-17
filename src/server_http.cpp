@@ -5,11 +5,11 @@
 // ==========================================
 // KONFIGURASI JARINGAN
 // ==========================================
-const char* ssid = "NAMA_WIFI_KAMU";
-const char* password = "PASSWORD_WIFI";
+const char* ssid = "bebek madura";
+const char* password = "kopihazel";
 
 // Ganti IP dengan IP lokal komputermu yang menjalankan Flask (misal: 192.168.1.10)
-const char* serverName = "http://192.168.1.10:5000/api/data"; 
+const char* serverName = "http://10.34.41.85:5000/api/data"; 
 
 void setupWiFi() {
     Serial.println();
@@ -37,8 +37,18 @@ void setupWiFi() {
 void sendDataToServer(int counter, float roll, float pitch, float rain, float soil) {
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
+        
+        // TAMBAHKAN BARIS INI: Beri waktu tunggu 5 detik (5000 ms)
+        http.setTimeout(5000); 
+        
         http.begin(serverName);
         http.addHeader("Content-Type", "application/json");
+
+        http.begin(serverName);
+        http.addHeader("Content-Type", "application/json");
+        
+        // TAMBAHKAN BARIS INI: Paksa server menutup koneksi setelah balas
+        http.addHeader("Connection", "close"); 
 
         // Format data menjadi JSON secara manual
         String jsonPayload = "{";
