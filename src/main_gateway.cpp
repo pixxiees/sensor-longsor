@@ -80,19 +80,19 @@ void loop() {
             // ==========================================
             // PARSING DATA
             // ==========================================
+            char node_id[20]; // Variabel baru untuk menampung teks "NODE_1"
             int counter, rain;
             float roll, pitch, soil, temp, vbat;
             float rssi = radio.getRSSI();
             float snr = radio.getSNR();
 
-            // Membaca format: counter, roll, pitch, rain, soil, temp, vbat
-            int parsed = sscanf(received.c_str(), "%d,%f,%f,%d,%f,%f,%f", 
-                                &counter, &roll, &pitch, &rain, &soil, &temp, &vbat);
+            int parsed = sscanf(received.c_str(), "%19[^,],%d,%f,%f,%d,%f,%f,%f", 
+                                node_id, &counter, &roll, &pitch, &rain, &soil, &temp, &vbat);
 
-            if (parsed == 7) {
+            if (parsed == 8) {
                 Serial.println("[PARSING] Succeed!");
-                // Kirim semua data lengkap ke Flask
-                sendDataToServer(counter, roll, pitch, rain, soil, temp, vbat, rssi, snr);
+                
+                sendDataToServer(String(node_id), counter, roll, pitch, rain, soil, temp, vbat, rssi, snr);
             } else {
                 Serial.println("[PARSING] Failed! Format data tidak sesuai.");
             }

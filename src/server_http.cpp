@@ -9,7 +9,7 @@ const char* ssid = "bebek madura";
 const char* password = "kopihazel";
 
 // Ganti IP dengan IP lokal komputermu yang menjalankan Flask (misal: 192.168.1.10)
-const char* serverName = "http://10.34.41.85:5000/api/data"; 
+const char* serverName = "http://pixxelee.pythonanywhere.com/api/data";
 
 void setupWiFi() {
     Serial.println();
@@ -34,8 +34,7 @@ void setupWiFi() {
     }
 }
 
-// Sesuaikan fungsi dan payload JSON-nya
-void sendDataToServer(int counter, float roll, float pitch, int rain, float soil, float temp, float vbat, float rssi, float snr) {
+void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float temp, float vbat, float rssi, float snr) {
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.setTimeout(5000); 
@@ -44,7 +43,7 @@ void sendDataToServer(int counter, float roll, float pitch, int rain, float soil
         http.addHeader("Connection", "close"); 
 
         String jsonPayload = "{";
-        jsonPayload += "\"node_id\":\"NODE_1\",";
+        jsonPayload += "\"node_id\":\"" + node_id + "\","; 
         jsonPayload += "\"counter\":" + String(counter) + ",";
         jsonPayload += "\"roll\":" + String(roll) + ",";
         jsonPayload += "\"pitch\":" + String(pitch) + ",";
@@ -55,8 +54,6 @@ void sendDataToServer(int counter, float roll, float pitch, int rain, float soil
         jsonPayload += "\"rssi\":" + String(rssi) + ",";
         jsonPayload += "\"snr\":" + String(snr);
         jsonPayload += "}";
-
-        // ... sisa kode POST http sama persis seperti sebelumnya ...
 
         Serial.print("[HTTP] Mengirim data... ");
         int httpResponseCode = http.POST(jsonPayload);

@@ -95,20 +95,22 @@ void loop()
     // int jumlahTip = getRainTips();
     // Serial.printf("Rain tipping: %d\r\n", jumlahTip);
 
-    String payload =
-        String(counter) + "," +
-        String(imu.roll,2) + "," +
-        String(imu.pitch,2) + "," +
-        String(soil,1);
-        String(imu.temperature, 2) + "," +
-        String(vbat, 2);
-
-    // int statusPinFisik = digitalRead(6);
-    // Serial.printf(">> STATUS VOLTASE PIN 6 MENTAH: %d <<\r\n", statusPinFisik);
-
+    // 1. Baca curah hujan (tipping bucket)
     int jumlahTip = getRainTips();
     Serial.printf("Rain tipping: %d\r\n", jumlahTip);        
 
+    // 2. Rakit payload (Pastikan jumlahnya 8 data)
+    String payload = 
+        String("NODE_1") + "," +               // 1. ID Node
+        String(counter) + "," +                // 2. Counter
+        String(imu.roll, 2) + "," +            // 3. Roll
+        String(imu.pitch, 2) + "," +           // 4. Pitch
+        String(jumlahTip) + "," +              // 5. Curah Hujan (Rain)
+        String(soil, 1) + "," +                // 6. Soil Moisture
+        String(imu.temperature, 2) + "," +     // 7. Suhu
+        String(vbat, 2);                       // 8. Baterai
+
+    // 3. Kirim via LoRa
     sendLoRa(payload);
 
     delay(3000);
