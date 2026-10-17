@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <RadioLib.h>
 #include <fuzzy_logic.h>
+#include "server_http.h" // Tambahkan library modular yang baru dibuat
 
 // ============================================================
 //  Pin mapping Heltec WiFi LoRa 32 V3 (ESP32-S3)
@@ -23,6 +24,9 @@ void setup() {
     Serial.println("  Heltec WiFi LoRa 32 V3 (RX)  ");
     Serial.println("    LoRa RX - Node Penerima     ");
     Serial.println("=================================");
+
+    // Inisialisasi WiFi Modular
+    setupWiFi();
 
     LoRaSPI.begin(9, 11, 10, 8);
 
@@ -87,9 +91,11 @@ void loop() {
                 Serial.printf("Rain: %.2f\r\n", rain);
                 Serial.printf("Soil Moisture: %.2f %%\r\n", soil);
                 
-                // eksekusi fuzzy
-                // hitung_fuzzy(roll, pitch, rain, soil);
+                // Eksekusi fuzzy (sebagai contoh)
                 float kemiringan = max(abs(pitch), abs(roll));
+                
+                // Kirim data ke web server menggunakan fungsi modular
+                sendDataToServer(counter, roll, pitch, rain, soil);
                 
             } else {
                 Serial.println("[PARSING] Failed! Format data tidak sesuai (bukan 5 data).");
