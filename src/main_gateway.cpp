@@ -2,10 +2,10 @@
 #include <SPI.h>
 #include <RadioLib.h>
 #include <fuzzy_logic.h>
-#include "server_http.h" // Tambahkan library modular yang baru dibuat
+#include "server_http.h" // Library modular untuk kirim data ke server/HTTP
 
 // ============================================================
-//  Pin mapping Heltec WiFi LoRa 32 V3 (ESP32-S3)
+//  Pin mapping Heltec WiFi LoRa 32 V3 (ESP32-S3) untuk Gateway
 //  SPI LoRa (FSPI) : SCK=9, MISO=11, MOSI=10
 //  SX1262          : NSS=8, DIO1=14, RESET=12, BUSY=13
 // ============================================================
@@ -22,25 +22,31 @@ void setup() {
     delay(2000);
     Serial.println("=================================");
     Serial.println("  Heltec WiFi LoRa 32 V3 (RX)  ");
-    Serial.println("    LoRa RX - Node Penerima     ");
+    Serial.println("    LoRa RX - Node Gateway      ");
     Serial.println("=================================");
 
     // Inisialisasi WiFi Modular
     setupWiFi();
 
+    // Inisialisasi SPI khusus LoRa
     LoRaSPI.begin(9, 11, 10, 8);
 
-    int state = radio.begin(915.0); // Sesuaikan dengan frekuensi TX
+    // Inisialisasi Radio pada Frekuensi 915.0 MHz
+    int state = radio.begin(915.0);
     
     if (state == RADIOLIB_ERR_NONE) {
-        Serial.println("[LoRa] Inisialisasi SUCCESS");
+        Serial.println("[LoRa] Inisialisasi SX1262 SUCCESS");
         
-        // --- PERBAIKAN: WAJIB UNTUK HELTEC V3 ---
-        // Menyalakan saklar fisik antena agar bisa menerima sinyal (RX)
+        // Parameter radio SAMA PERSIS dengan Node TX
+        radio.setSpreadingFactor(11);
+        radio.setBandwidth(62.5);
+        radio.setCodingRate(7);
+        radio.setSyncWord(0x12);
+      
         radio.setDio2AsRfSwitch(true);
         
     } else {
-        Serial.printf("[LoRa] FAILED, code = %d\n", state);
+        Serial.printf("[LoRa] Inisialisasi FAILED, code = %d\n", state);
         while (true) { delay(500); }
     }
 
@@ -48,10 +54,12 @@ void setup() {
     setupFuzzy();
     Serial.println("[Fuzzy] 27 Aturan berhasil dimuat.");
 
+    // Mulai mode mendengarkan (receive)
     radio.startReceive();
 }
 
 void loop() {
+    // Indikator visual di Serial Monitor bahwa gateway aktif menunggu
     if (millis() - lastPrintTime >= 3000) {
         lastPrintTime = millis();
         waitDots = (waitDots % 3) + 1;
@@ -78,9 +86,9 @@ void loop() {
             Serial.println(" dB");
             
             // ==========================================
-            // PARSING DATA
+            // PARSING DATA DARI NODE
             // ==========================================
-            char node_id[20]; // Variabel baru untuk menampung teks "NODE_1"
+            char node_id[20]; 
             int counter, rain;
             float roll, pitch, soil, temp, vbat;
             float rssi = radio.getRSSI();
@@ -92,6 +100,7 @@ void loop() {
             if (parsed == 8) {
                 Serial.println("[PARSING] Succeed!");
                 
+                // Kirim data terurai ke server lewat HTTP
                 sendDataToServer(String(node_id), counter, roll, pitch, rain, soil, temp, vbat, rssi, snr);
             } else {
                 Serial.println("[PARSING] Failed! Format data tidak sesuai.");
@@ -106,7 +115,7 @@ void loop() {
             Serial.println(state);
         }
 
-        // Restart receive untuk paket berikutnya
+        // Mulai ulang mode penerimaan untuk paket berikutnya
         radio.startReceive();
     }
 }

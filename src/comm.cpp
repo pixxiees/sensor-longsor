@@ -1,10 +1,9 @@
 #include "comm.h"
-
 #include <SPI.h>
 #include <RadioLib.h>
 
 // ============================================================
-// Heltec Wireless Stick Lite V3
+// Konfigurasi Pin Heltec WiFi LoRa 32 V3 / Wireless Stick Lite V3
 // ============================================================
 
 SPIClass LoRaSPI(FSPI);
@@ -28,28 +27,44 @@ bool initLoRa()
 
     Serial.print("[LoRa] Initializing... ");
 
+    // 1. Inisialisasi Frekuensi (915.0 MHz untuk Indonesia)
     int state = radio.begin(915.0);
 
     if(state != RADIOLIB_ERR_NONE)
     {
-        Serial.print("FAILED (");
+        Serial.print("FAILED (Kode Error: ");
         Serial.print(state);
         Serial.println(")");
-
         return false;
     }
 
-    // --- PERBAIKAN 1: Wajib untuk Heltec V3 ---
-    // Mengaktifkan saklar fisik antena agar bisa mengirim (TX) dan menerima (RX)
+    // ========================================================
+    // 2. SINKRONISASI PARAMETER LORA (Wajib sama di Node & Gateway)
+    // ========================================================
+    
+    // Spreading Factor 11 untuk penetrasi halangan (box 3D/dinding)
+    radio.setSpreadingFactor(11);
+    
+    // Bandwidth 62.5 kHz (Di RadioLib ditulis langsung dalam kHz)
+    radio.setBandwidth(62.5);
+    
+    // Coding Rate 7 (Lebih tahan terhadap error/noise)
+    radio.setCodingRate(7);
+
+    // Sync Word 0x12 (Standar private network LoRa)
+    radio.setSyncWord(0x12);
+    
+    // ========================================================
+
+    // 3. Konfigurasi Khusus Hardware Heltec V3
+    // Wajib diaktifkan agar antena bisa berpindah mode RX dan TX
     radio.setDio2AsRfSwitch(true);
 
-    // --- PERBAIKAN 2: Cegah Saturasi Sinyal ---
-    // Turunkan daya pancar dari 22 menjadi 10 saat pengujian di atas meja
-    // (Bisa dikembalikan ke 22 nanti saat dipasang di lapangan)
+    // Turunkan daya pancar ke 15 dBm untuk mencegah saturasi sinyal
+    // saat kedua alat diuji dalam jarak dekat di atas meja.
     radio.setOutputPower(15);
 
     Serial.println("SUCCESS");
-
     return true;
 }
 
@@ -67,7 +82,7 @@ bool sendLoRa(String &message)
         return true;
     }
 
-    Serial.print("FAILED (");
+    Serial.print("FAILED (Kode Error: ");
     Serial.print(state);
     Serial.println(")");
 

@@ -1,5 +1,4 @@
 #include <Arduino.h>
-
 #include "comm.h"
 #include "read_imu.h"
 #include "read_soil.h"
@@ -14,7 +13,7 @@ void setup()
 
     Serial.println();
     Serial.println("=================================");
-    Serial.println(" HELTEC SENSOR NODE");
+    Serial.println(" HELTEC SENSOR NODE (ACTIVE)     ");
     Serial.println("=================================");
 
     if(!initLoRa())
@@ -54,54 +53,25 @@ void loop()
     Serial.println("--------------------------------");
     counter++;
 
+    // 1. Baca Sensor-sensor Fisik
     float soil = readSoilPercent();
-
-    Serial.print("SOIL : ");
-    Serial.print(soil);
-    Serial.println(" %");
-
     IMUData imu = readIMU();
+    int jumlahTip = getRainTips();
 
+    // 2. Baca Tegangan Baterai (Pin GPIO 1 / ADC)
     float vbat = (analogRead(1) / 4095.0) * 3.3 * 3.2;
+
+    // 3. Print Debug ke Serial Monitor
+    Serial.print("SOIL   : "); Serial.print(soil); Serial.println(" %");
+    Serial.print("Pitch  : "); Serial.println(imu.pitch);
+    Serial.print("Roll   : "); Serial.println(imu.roll);
+    Serial.print("TEMP   : "); Serial.println(imu.temperature);
+    Serial.printf("Rain   : %d\r\n", jumlahTip);
     Serial.printf("Baterai: %.2f V\r\n", vbat);
 
-    // Serial.print("AX : ");
-    // Serial.println(imu.ax);
-
-    // Serial.print("AY : ");
-    // Serial.println(imu.ay);
-
-    // Serial.print("AZ : ");
-    // Serial.println(imu.az);
-
-    // Serial.print("GX : ");
-    // Serial.println(imu.gx);
-
-    // Serial.print("GY : ");
-    // Serial.println(imu.gy);
-
-    // Serial.print("GZ : ");
-    // Serial.println(imu.gz);
-
-    Serial.print("Pitch : ");
-    Serial.println(imu.pitch);
-
-    Serial.print("Roll  : ");
-    Serial.println(imu.roll);
-
-    Serial.print("TEMP : ");
-    Serial.println(imu.temperature);
-
-    // int jumlahTip = getRainTips();
-    // Serial.printf("Rain tipping: %d\r\n", jumlahTip);
-
-    // 1. Baca curah hujan (tipping bucket)
-    int jumlahTip = getRainTips();
-    Serial.printf("Rain tipping: %d\r\n", jumlahTip);        
-
-    // 2. Rakit payload (Pastikan jumlahnya 8 data)
+    // 4. Rakit Payload (8 Komponen Data Sesuai Format Gateway)
     String payload = 
-        String("NODE_1") + "," +               // 1. ID Node
+        String("NODE_1") + "," +                // 1. ID Node
         String(counter) + "," +                // 2. Counter
         String(imu.roll, 2) + "," +            // 3. Roll
         String(imu.pitch, 2) + "," +           // 4. Pitch
@@ -110,8 +80,9 @@ void loop()
         String(imu.temperature, 2) + "," +     // 7. Suhu
         String(vbat, 2);                       // 8. Baterai
 
-    // 3. Kirim via LoRa
+    // 5. Kirim via LoRa menggunakan fungsi sendLoRa dari comm.cpp
     sendLoRa(payload);
 
-    delay(3000);
+    // Jeda pengiriman (misal 10 detik atau 3 detik sesuai kebutuhan uji coba)
+    delay(10000); 
 }
