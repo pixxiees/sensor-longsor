@@ -2,7 +2,7 @@
 #include <SPI.h>
 #include <RadioLib.h>
 #include <fuzzy_logic.h>
-#include "server_http.h" // Library modular untuk kirim data ke server/HTTP
+#include "server_http.h"
 
 // ============================================================
 //  Pin mapping Heltec WiFi LoRa 32 V3 (ESP32-S3) untuk Gateway
@@ -19,41 +19,36 @@ int waitDots = 0;
 
 void setup() {
     Serial.begin(115200);
-    delay(2000);
-    Serial.println("=================================");
-    Serial.println("  Heltec WiFi LoRa 32 V3 (RX)  ");
-    Serial.println("    LoRa RX - Node Gateway      ");
-    Serial.println("=================================");
-
-    pinMode(36, OUTPUT);
-    digitalWrite(36, LOW); // LOW = Menyalakan VEXT (Memberi daya ke SX1262)
-    delay(100);            // Beri jeda 100ms agar tegangan LoRa stabil
-
-    Serial.begin(115200);
-    delay(2000);
+    delay(1000);
 
     Serial.println("=================================");
     Serial.println("  Heltec V3 Lite Gateway (RX)   ");
     Serial.println("=================================");
 
-    // Inisialisasi WiFi Modular
+    // 1. Daya VEXT untuk Chip LoRa SX1262
+    pinMode(36, OUTPUT);
+    digitalWrite(36, LOW); // LOW = Menyalakan VEXT
+    delay(100);
+
+    // 2. Cegah pin interupsi DIO1 floating saat boot dari adaptor
+    pinMode(DIO1_PIN, INPUT_PULLDOWN);
+
+    // 3. Inisialisasi WiFi (Blocking sampai terhubung penuh)
     setupWiFi();
 
-    // Inisialisasi SPI khusus LoRa
+    // 4. Inisialisasi SPI khusus LoRa
     LoRaSPI.begin(9, 11, 10, 8);
 
-    // Inisialisasi Radio pada Frekuensi 915.0 MHz
+    // 5. Inisialisasi Radio pada Frekuensi 915.0 MHz
     int state = radio.begin(915.0);
     
     if (state == RADIOLIB_ERR_NONE) {
         Serial.println("[LoRa] Inisialisasi SX1262 SUCCESS");
         
-        // Parameter radio SAMA PERSIS dengan Node TX
         radio.setSpreadingFactor(11);
         radio.setBandwidth(62.5);
         radio.setCodingRate(7);
         radio.setSyncWord(0x12);
-      
         radio.setDio2AsRfSwitch(true);
         
     } else {
@@ -61,11 +56,11 @@ void setup() {
         while (true) { delay(500); }
     }
 
-    // Inisialisasi Fuzzy dari fuzzy_logic.cpp
+    // 6. Inisialisasi Fuzzy Logic
     setupFuzzy();
     Serial.println("[Fuzzy] 27 Aturan berhasil dimuat.");
 
-    // Mulai mode mendengarkan (receive)
+    // 7. Mulai mode mendengarkan (receive)
     radio.startReceive();
 }
 
@@ -96,9 +91,7 @@ void loop() {
             Serial.print(radio.getSNR());
             Serial.println(" dB");
             
-            // ==========================================
-            // PARSING DATA DARI NODE
-            // ==========================================
+            // Parsing data dari Node
             char node_id[20]; 
             int counter, rain;
             float roll, pitch, soil, temp, vbat;
