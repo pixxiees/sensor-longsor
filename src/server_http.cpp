@@ -16,10 +16,14 @@ void setupWiFi() {
     Serial.print("[WiFi] Menghubungkan ke ");
     Serial.println(ssid);
 
+    // 1. Matikan mode hemat daya WiFi agar pemancar bekerja penuh (100% Power)
+    WiFi.setSleep(false);
+    WiFi.mode(WIFI_STA);
+
     WiFi.begin(ssid, password);
 
     int retries = 0;
-    while (WiFi.status() != WL_CONNECTED && retries < 20) {
+    while (WiFi.status() != WL_CONNECTED && retries < 30) { // Naikkan timeout ke 15 detik
         delay(500);
         Serial.print(".");
         retries++;
@@ -35,6 +39,16 @@ void setupWiFi() {
 }
 
 void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float temp, float vbat, float rssi, float snr) {
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("[HTTP] WiFi terputus, mencoba menghubungkan ulang...");
+        WiFi.reconnect();
+        int wait = 0;
+        while (WiFi.status() != WL_CONNECTED && wait < 10) {
+            delay(500);
+            wait++;
+        }
+    }
+    
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.setTimeout(5000); 

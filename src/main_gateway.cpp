@@ -25,6 +25,17 @@ void setup() {
     Serial.println("    LoRa RX - Node Gateway      ");
     Serial.println("=================================");
 
+    pinMode(36, OUTPUT);
+    digitalWrite(36, LOW); // LOW = Menyalakan VEXT (Memberi daya ke SX1262)
+    delay(100);            // Beri jeda 100ms agar tegangan LoRa stabil
+
+    Serial.begin(115200);
+    delay(2000);
+
+    Serial.println("=================================");
+    Serial.println("  Heltec V3 Lite Gateway (RX)   ");
+    Serial.println("=================================");
+
     // Inisialisasi WiFi Modular
     setupWiFi();
 
