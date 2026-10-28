@@ -4,6 +4,6 @@
 #include <Arduino.h>
 
 void setupFuzzy();
-void hitungFuzzy(float dataHujan, float dataKelembapan, float dataPergerakan);
+int hitungFuzzy(float dataHujan, float dataKelembapan, float dataPergerakan);
 
 #endif

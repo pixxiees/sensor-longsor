@@ -3,9 +3,11 @@
 
 #include <Arduino.h>
 
-// Fungsi untuk inisialisasi koneksi Wi-Fi
+// Deklarasi fungsi-fungsi HTTP
 void setupWiFi();
-
-void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float temp, float vbat, float rssi, float snr);
+void startNewSession(); // <--- PASTI KAN BARIS INI ADA
+void sendDataToServer(String node_id, int counter, float roll, float pitch, 
+                      int rain, float soil, float temp, float vbat, 
+                      float rssi, float snr);
 
 #endif

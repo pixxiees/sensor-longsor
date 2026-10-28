@@ -30,6 +30,27 @@ void setupWiFi() {
     Serial.println(WiFi.localIP());
 }
 
+void startNewSession() {
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        http.setTimeout(2000);
+        
+        // Panggil endpoint /new_session di Flask
+        http.begin("http://pixxelee.pythonanywhere.com/new_session");
+        http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+        
+        Serial.println("[HTTP] Mengirim sinyal booting: Membuat Sesi Baru...");
+        int httpCode = http.POST("session_name=Boot_Session");
+        
+        if (httpCode > 0) {
+            Serial.printf("[HTTP] Sesi Baru Berhasil Dibuat! (Code: %d)\n", httpCode);
+        } else {
+            Serial.printf("[HTTP] Gagal buat sesi baru: %s\n", http.errorToString(httpCode).c_str());
+        }
+        http.end();
+    }
+}
+
 void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float temp, float vbat, float rssi, float snr) {
     // Reconnect cepat jika koneksi WiFi terputus
     if (WiFi.status() != WL_CONNECTED) {

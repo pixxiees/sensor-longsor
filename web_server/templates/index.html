@@ -93,12 +93,98 @@
             }
         }
 
+        /* BARIS KONTROL DI ATAS TABEL (MENU GARIS 3 & DOWNLOAD) */
+        .table-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .menu-btn,
+        .btn-download {
+            background-color: #800000;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .menu-btn:hover,
+        .btn-download:hover {
+            opacity: 0.9;
+        }
+
+        /* DROPDOWN MENU KETIKA GARIS 3 DIKLIK */
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 42px;
+            left: 0;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+            width: 280px;
+            z-index: 100;
+            padding: 12px;
+            border: 1px solid #ddd;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-menu label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .dropdown-menu select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+
+        .btn-new-session {
+            width: 100%;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .btn-delete-session {
+            width: 100%;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
         /* TABEL SLIDING */
         .table-wrapper {
             max-height: 350px;
-            /* Menampilkan sekitar 10 baris, sisanya di-scroll */
             overflow-y: auto;
-            /* Memunculkan scrollbar vertikal */
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
             background-color: white;
@@ -116,7 +202,6 @@
             border-bottom: 1px solid #ddd;
         }
 
-        /* Membuat kepala tabel menempel saat di-scroll */
         th {
             position: sticky;
             top: 0;
@@ -139,12 +224,12 @@
 <body>
     <h1>Dashboard EWS Tanah Longsor</h1>
 
-    {% set latest = data[0] if data else None %}
+    {% set latest = sensor_data[0] if sensor_data else None %}
 
     <div class="header-info" id="info-board">
         {% if latest %}
-        Pembaruan Terakhir: <strong>{{ latest['timestamp'] }}</strong> | Node ID: <strong>{{ latest['node_id']
-            }}</strong> | Counter: <strong>{{ latest['counter'] }}</strong>
+        Pembaruan Terakhir: <strong>{{ latest['waktu'] }}</strong> | Node ID: <strong>{{ latest['node_id'] }}</strong> |
+        Counter: <strong>{{ latest['counter'] }}</strong>
         {% else %}
         Menunggu data masuk...
         {% endif %}
@@ -180,6 +265,34 @@
         <div class="chart-box"><canvas id="chartLingkungan"></canvas></div>
     </div>
 
+    <!-- KONTROL PADA TABEL (GARIS 3 & DOWNLOAD CSV) -->
+    <div class="table-controls">
+        <button class="menu-btn" onclick="toggleMenu()">☰ Menu Session</button>
+
+        <!-- DROPDOWN POPUP MENU -->
+        <div class="dropdown-menu" id="sessionMenu">
+            <form method="GET" action="/">
+                <label for="session_id">PILIH SESSION DATA:</label>
+                <select name="session_id" id="session_id" onchange="this.form.submit()">
+                    {% for s in sessions %}
+                    <option value="{{ s['id'] }}" {% if s['id']==selected_session_id %}selected{% endif %}>
+                        {{ s['session_name'] }} ({{ s['created_at'] }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+            <button class="btn-new-session" onclick="createNewSession()">+ Session Baru</button>
+            {% if selected_session_id %}
+            <button class="btn-delete-session" onclick="deleteSession('{{ selected_session_id }}')">Hapus Database
+                Ini</button>
+            {% endif %}
+        </div>
+
+        {% if selected_session_id %}
+        <a href="/download_csv/{{ selected_session_id }}" class="btn-download">📥 Download CSV</a>
+        {% endif %}
+    </div>
+
     <!-- AREA TABEL SLIDING -->
     <div class="table-wrapper">
         <table>
@@ -195,9 +308,9 @@
                 </tr>
             </thead>
             <tbody id="tabel-body">
-                {% for row in data %}
+                {% for row in sensor_data %}
                 <tr>
-                    <td>{{ row['timestamp'] }}</td>
+                    <td>{{ row['waktu'] }}</td>
                     <td>{{ row['node_id'] }}</td>
                     <td>{{ row['counter'] }}</td>
                     <td>{{ row['roll'] }}</td>
@@ -249,17 +362,15 @@
 
         // Fungsi Pintar: Mengambil data grafik dengan membaca angka langsung dari Tabel HTML!
         function perbaruiGrafikDariTabel() {
-            if (document.getElementById('row-kosong')) return; // Jika tabel kosong, batalkan
+            if (document.getElementById('row-kosong')) return;
 
-            // Ambil semua baris tabel, lalu balik urutannya (terlama di kiri, terbaru di kanan)
             const barisTabel = Array.from(document.querySelectorAll('#tabel-body tr')).reverse();
-
             const labels = [], pitch = [], roll = [], rain = [], soil = [];
 
             barisTabel.forEach(tr => {
                 const td = tr.querySelectorAll('td');
                 if (td.length === 7) {
-                    labels.push(td[0].innerText.split(' ')[1]); // Ambil jamnya saja
+                    labels.push(td[0].innerText.split(' ')[1] || td[0].innerText); // Ambil jamnya
                     roll.push(parseFloat(td[3].innerText));
                     pitch.push(parseFloat(td[4].innerText));
                     rain.push(parseFloat(td[5].innerText));
@@ -267,7 +378,6 @@
                 }
             });
 
-            // Suntikkan data ke grafik dan perbarui animasinya
             chartKemiringan.data.labels = labels;
             chartKemiringan.data.datasets[0].data = pitch;
             chartKemiringan.data.datasets[1].data = roll;
@@ -279,7 +389,6 @@
             chartLingkungan.update();
         }
 
-        // Panggil saat pertama kali halaman dimuat
         perbaruiGrafikDariTabel();
 
         // Auto-Reload (AJAX) - Tanpa Kedip
@@ -291,26 +400,55 @@
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
 
-                    // Cek apakah ada paket data baru
                     const infoBaru = doc.getElementById('info-board').innerHTML;
                     if (infoBaru !== document.getElementById('info-board').innerHTML) {
-                        // Perbarui teks info
                         document.getElementById('info-board').innerHTML = infoBaru;
 
-                        // Perbarui kartu status
                         if (doc.getElementById('status-board')) {
                             document.getElementById('status-board').innerHTML = doc.getElementById('status-board').innerHTML;
                         }
 
-                        // Perbarui isi tabel
                         document.getElementById('tabel-body').innerHTML = doc.getElementById('tabel-body').innerHTML;
-
-                        // Perbarui grafik secara otomatis dari tabel yang baru masuk
                         perbaruiGrafikDariTabel();
                     }
                 })
                 .catch(err => console.log('Menunggu pembaruan jaringan...'));
-        }, 3000); 
+        }, 3000);
+
+        // Fungsi Toggle Dropdown Menu Garis Tiga
+        function toggleMenu() {
+            document.getElementById('sessionMenu').classList.toggle('show');
+        }
+
+        // Buat Session Baru
+        function createNewSession() {
+            let name = prompt("Masukkan nama session/database baru (opsional):");
+            let formData = new FormData();
+            if (name) formData.append('session_name', name);
+
+            fetch('/new_session', { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        window.location.href = '/?session_id=' + data.session_id;
+                    }
+                });
+        }
+
+        // Hapus Session
+        function deleteSession(sessionId) {
+            if (confirm("Apakah Anda yakin ingin menghapus database session ini beserta seluruh datanya?")) {
+                fetch('/delete_session/' + sessionId, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            window.location.href = '/';
+                        } else {
+                            alert("Gagal menghapus session.");
+                        }
+                    });
+            }
+        }
     </script>
 </body>
 

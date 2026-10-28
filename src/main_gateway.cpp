@@ -11,11 +11,41 @@
 // ============================================================
 #define DIO1_PIN 14   // DIO1 = HIGH saat paket diterima
 
+// --- PIN INDIKATOR RELAY GATEWAY (2 CHANNEL) ---
+#define RELAY_KUNING 2   // Channel 1: Lampu Kuning (Status AWAS)
+#define RELAY_MERAH  3   // Channel 2: Lampu Merah + Buzzer (Status BAHAYA)
+
+// Tipe Relay diubah ke Active LOW (karena jumper di posisi Low)
+#define RELAY_ON  LOW
+#define RELAY_OFF HIGH
+
 SPIClass LoRaSPI(FSPI);
 SX1262 radio = new Module(8, DIO1_PIN, 12, 13, LoRaSPI);
 
 unsigned long lastPrintTime = 0;
 int waitDots = 0;
+
+// Fungsi Mengatur Lampu Relay Peringatan
+void setWarningSystem(int levelStatus) {
+    if (levelStatus == 1) {
+        // --- AMAN ---
+        digitalWrite(RELAY_KUNING, RELAY_OFF);
+        digitalWrite(RELAY_MERAH, RELAY_OFF);
+        Serial.println("[STATUS] AMAN -> Semua Lampu & Alarm Mati");
+
+    } else if (levelStatus == 2) {
+        // --- AWAS ---
+        digitalWrite(RELAY_KUNING, RELAY_ON);
+        digitalWrite(RELAY_MERAH, RELAY_OFF);
+        Serial.println("[STATUS] AWAS -> Lampu Kuning Menyala");
+
+    } else if (levelStatus == 3) {
+        // --- BAHAYA ---
+        digitalWrite(RELAY_KUNING, RELAY_ON);
+        digitalWrite(RELAY_MERAH, RELAY_ON); // Menyala bersamaan: Lampu Merah + Buzzer + Lampu Kuning
+        Serial.println("[STATUS] BAHAYA -> Lampu Kuning & (Lampu Merah + Buzzer) Menyala!");
+    }
+}
 
 void setup() {
     Serial.begin(115200);
@@ -25,21 +55,29 @@ void setup() {
     Serial.println("  Heltec V3 Lite Gateway (RX)   ");
     Serial.println("=================================");
 
+    // Inisialisasi Pin Relay
+    pinMode(RELAY_KUNING, OUTPUT);
+    pinMode(RELAY_MERAH, OUTPUT);
+    setWarningSystem(1); // Set awal ke kondisi AMAN
+
     // 1. Daya VEXT untuk Chip LoRa SX1262
     pinMode(36, OUTPUT);
     digitalWrite(36, LOW); // LOW = Menyalakan VEXT
     delay(100);
 
-    // 2. Cegah pin interupsi DIO1 floating saat boot dari adaptor
+    // 2. Cegah pin interupsi DIO1 floating saat boot
     pinMode(DIO1_PIN, INPUT_PULLDOWN);
 
-    // 3. Inisialisasi WiFi (Blocking sampai terhubung penuh)
+    // 3. Inisialisasi WiFi
     setupWiFi();
 
-    // 4. Inisialisasi SPI khusus LoRa
+    // 4. Sesi baru database
+    startNewSession();
+
+    // 5. Inisialisasi SPI LoRa
     LoRaSPI.begin(9, 11, 10, 8);
 
-    // 5. Inisialisasi Radio pada Frekuensi 915.0 MHz
+    // 6. Inisialisasi Radio SX1262
     int state = radio.begin(915.0);
     
     if (state == RADIOLIB_ERR_NONE) {
@@ -56,16 +94,15 @@ void setup() {
         while (true) { delay(500); }
     }
 
-    // 6. Inisialisasi Fuzzy Logic
+    // 7. Inisialisasi Fuzzy Logic
     setupFuzzy();
     Serial.println("[Fuzzy] 27 Aturan berhasil dimuat.");
 
-    // 7. Mulai mode mendengarkan (receive)
+    // 8. Mulai mode mendengarkan (receive)
     radio.startReceive();
 }
 
 void loop() {
-    // Indikator visual di Serial Monitor bahwa gateway aktif menunggu
     if (millis() - lastPrintTime >= 3000) {
         lastPrintTime = millis();
         waitDots = (waitDots % 3) + 1;
@@ -74,7 +111,6 @@ void loop() {
         Serial.println();
     }
 
-    // Cek DIO1 — HIGH berarti SX1262 sudah terima paket
     if (digitalRead(DIO1_PIN) == HIGH) {
         String received = "";
         int state = radio.readData(received);
@@ -84,28 +120,35 @@ void loop() {
             Serial.println("========== PAKET DITERIMA ==========");
             Serial.print("[RX] Pesan   : ");
             Serial.println(received);
-            Serial.print("[RX] RSSI    : ");
-            Serial.print(radio.getRSSI());
-            Serial.println(" dBm");
-            Serial.print("[RX] SNR     : ");
-            Serial.print(radio.getSNR());
-            Serial.println(" dB");
             
             // Parsing data dari Node
             char node_id[20]; 
             int counter, rain;
-            float roll, pitch, soil, temp, vbat;
+            float roll, pitch, soil, temp, vbat_raw;
             float rssi = radio.getRSSI();
             float snr = radio.getSNR();
 
             int parsed = sscanf(received.c_str(), "%19[^,],%d,%f,%f,%d,%f,%f,%f", 
-                                node_id, &counter, &roll, &pitch, &rain, &soil, &temp, &vbat);
+                                node_id, &counter, &roll, &pitch, &rain, &soil, &temp, &vbat_raw);
 
             if (parsed == 8) {
+                // Kalibrasi tegangan baterai
+                float vbat_calibrated = vbat_raw * 1.799f;
+
                 Serial.println("[PARSING] Succeed!");
+
+                // --- EKSEKUSI FUZZY LOGIC ---
+                // Mengambil nilai sudut kemiringan terbesar (kemiringan absolut)
+                float pergerakan_max = max(abs(roll), abs(pitch));
                 
-                // Kirim data terurai ke server lewat HTTP
-                sendDataToServer(String(node_id), counter, roll, pitch, rain, soil, temp, vbat, rssi, snr);
+                // Panggil fungsi fuzzy_logic.cpp
+                int status_fuzzy = hitungFuzzy((float)rain, soil, pergerakan_max);
+                
+                // Atur Relay sesuai hasil Fuzzy Logic
+                setWarningSystem(status_fuzzy);
+                
+                // Kirim data ke PythonAnywhere Server
+                sendDataToServer(String(node_id), counter, roll, pitch, rain, soil, temp, vbat_calibrated, rssi, snr);
             } else {
                 Serial.println("[PARSING] Failed! Format data tidak sesuai.");
             }
@@ -119,7 +162,6 @@ void loop() {
             Serial.println(state);
         }
 
-        // Mulai ulang mode penerimaan untuk paket berikutnya
         radio.startReceive();
     }
 }

@@ -4,29 +4,28 @@
 Fuzzy *fuzzy = new Fuzzy();
 
 // ==========================================
-// himpunan fuzzy
+// Himpunan Fuzzy (Disesuaikan)
 // ==========================================
-// curah hujan (mm/jam)
-FuzzySet *hKering  = new FuzzySet(0, 0, 1, 5);
-FuzzySet *hGerimis = new FuzzySet(2, 5, 10, 15);
-FuzzySet *hDeras   = new FuzzySet(10, 20, 50, 50);
+// Curah hujan (Tip / mm)
+FuzzySet *hKering  = new FuzzySet(0, 0, 0.5, 2);
+FuzzySet *hGerimis = new FuzzySet(1, 3, 8, 12);
+FuzzySet *hDeras   = new FuzzySet(10, 15, 50, 50);
 
-// soil moisture (%)
+// Soil moisture (%)
 FuzzySet *tRendah = new FuzzySet(0, 0, 30, 40);
 FuzzySet *tSedang = new FuzzySet(30, 45, 55, 70);
 FuzzySet *tTinggi = new FuzzySet(60, 75, 100, 100);
 
-// pergerakan/kemiringan (derajat)
-FuzzySet *pAman    = new FuzzySet(0, 0, 3, 5);
-FuzzySet *pWaspada = new FuzzySet(3, 7, 10, 15);
-FuzzySet *pBahaya  = new FuzzySet(10, 20, 90, 90);
+// Pergerakan/Kemiringan (derajat)
+FuzzySet *pAman    = new FuzzySet(0, 0, 2, 4);
+FuzzySet *pWaspada = new FuzzySet(3, 5, 8, 12);
+FuzzySet *pBahaya  = new FuzzySet(10, 18, 90, 90);
 
-// output status (0-100)
-FuzzySet *sAman    = new FuzzySet(0, 0, 20, 40);
-FuzzySet *sWaspada = new FuzzySet(30, 50, 50, 70);
-FuzzySet *sAwas    = new FuzzySet(60, 80, 100, 100);
+// Output status (0-100) - Rentang sAwas diperlebar ke kiri
+FuzzySet *sAman    = new FuzzySet(0, 0, 15, 35);
+FuzzySet *sWaspada = new FuzzySet(25, 45, 55, 65);
+FuzzySet *sAwas    = new FuzzySet(50, 70, 100, 100); // Batas sAwas dimulai dari 50
 
-// penulisan rule
 void tambahAturan(int id, FuzzySet *hujan, FuzzySet *tanah, FuzzySet *gerak, FuzzySet *status) {
     FuzzyRuleAntecedent *ifHujanDanTanah = new FuzzyRuleAntecedent();
     ifHujanDanTanah->joinWithAND(hujan, tanah);
@@ -58,8 +57,7 @@ void setupFuzzy() {
     status->addFuzzySet(sAman); status->addFuzzySet(sWaspada); status->addFuzzySet(sAwas);
     fuzzy->addFuzzyOutput(status);
 
-    // 27 basis aturan
-    // hujan kering
+    // 27 Basis Aturan Sesuai Proposal Slide 8
     tambahAturan(1, hKering, tRendah, pAman, sAman);
     tambahAturan(2, hKering, tRendah, pWaspada, sWaspada);
     tambahAturan(3, hKering, tRendah, pBahaya, sAwas);
@@ -70,7 +68,6 @@ void setupFuzzy() {
     tambahAturan(8, hKering, tTinggi, pWaspada, sWaspada);
     tambahAturan(9, hKering, tTinggi, pBahaya, sAwas);
 
-    // hujan gerimis
     tambahAturan(10, hGerimis, tRendah, pAman, sAman);
     tambahAturan(11, hGerimis, tRendah, pWaspada, sWaspada);
     tambahAturan(12, hGerimis, tRendah, pBahaya, sAwas);
@@ -81,7 +78,6 @@ void setupFuzzy() {
     tambahAturan(17, hGerimis, tTinggi, pWaspada, sAwas);
     tambahAturan(18, hGerimis, tTinggi, pBahaya, sAwas);
 
-    // hujan deras
     tambahAturan(19, hDeras, tRendah, pAman, sAman);
     tambahAturan(20, hDeras, tRendah, pWaspada, sWaspada);
     tambahAturan(21, hDeras, tRendah, pBahaya, sAwas);
@@ -93,22 +89,29 @@ void setupFuzzy() {
     tambahAturan(27, hDeras, tTinggi, pBahaya, sAwas);
 }
 
-void hitungFuzzy(float dataHujan, float dataKelembapan, float dataPergerakan) {
+int hitungFuzzy(float dataHujan, float dataKelembapan, float dataPergerakan) {
+    // Gunakan nilai absolut pergerakan sudut
+    float absPergerakan = abs(dataPergerakan);
+
     fuzzy->setInput(1, dataHujan);
     fuzzy->setInput(2, dataKelembapan);
-    fuzzy->setInput(3, dataPergerakan);
+    fuzzy->setInput(3, absPergerakan);
     fuzzy->fuzzify();
 
     float hasilPeringatan = fuzzy->defuzzify(1);
     
-    Serial.printf("\r\n[FUZZY] Nilai Defuzzifikasi: %.2f\r\n", hasilPeringatan);
-    Serial.print("[FUZZY] KEPUTUSAN: ");
+    Serial.printf("\r\n[FUZZY] Input -> Hujan: %.1f, Soil: %.1f %%, Tilt: %.2f deg\r\n", dataHujan, dataKelembapan, absPergerakan);
+    Serial.printf("[FUZZY] Nilai Defuzzifikasi: %.2f\r\n", hasilPeringatan);
 
-    if (hasilPeringatan >= 60) {
-        Serial.println("AWAS (Sirine Menyala) 🔴");
-    } else if (hasilPeringatan >= 30) {
-        Serial.println("WASPADA (Sirine Jeda) 🟡");
+    // KOREKSI THRESHOLD DEFUZZIFIKASI
+    if (hasilPeringatan >= 50.0f) {  // Turunkan dari 60.0f ke 50.0f agar masuk ke BAHAYA (Rule 3, 6, 9)
+        Serial.println("[FUZZY] KEPUTUSAN: BAHAYA (Lampu / Buzzer ON) 🔴");
+        return 3; // Status 3: BAHAYA
+    } else if (hasilPeringatan >= 25.0f) {
+        Serial.println("[FUZZY] KEPUTUSAN: WASPADA 🟡");
+        return 2; // Status 2: WASPADA
     } else {
-        Serial.println("AMAN (Sirine Mati) 🟢");
+        Serial.println("[FUZZY] KEPUTUSAN: AMAN 🟢");
+        return 1; // Status 1: AMAN
     }
 }
