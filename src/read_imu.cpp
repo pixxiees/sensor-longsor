@@ -6,49 +6,65 @@
 
 #define SDA_PIN 41
 #define SCL_PIN 42
+#define MPU6050_ADDR 0x68
 
+// Deklarasi Objek MPU6050
 Adafruit_MPU6050 mpu;
 
 RTC_DATA_ATTR float pitchOffset = 0.0;
 RTC_DATA_ATTR float rollOffset = 0.0;
 RTC_DATA_ATTR bool isCalibrated = false;
 
-// Bersihkan Latch Register MPU6050 via I2C
+// Tulis Register Manual via I2C
+void writeMPURegister(uint8_t reg, uint8_t val) {
+    Wire.beginTransmission(MPU6050_ADDR);
+    Wire.write(reg);
+    Wire.write(val);
+    Wire.endTransmission();
+}
+
+// Clear Interrupt Latch via Baca Register 0x3A (INT_STATUS)
 void clearMPUInterrupt() {
-    Wire.beginTransmission(0x68);
-    Wire.write(0x3A); // Register INT_STATUS
+    Wire.beginTransmission(MPU6050_ADDR);
+    Wire.write(0x3A); 
     Wire.endTransmission(false);
-    Wire.requestFrom(0x68, 1);
-    if (Wire.available()) { Wire.read(); }
+    Wire.requestFrom(MPU6050_ADDR, 1);
+    while (Wire.available()) { 
+        Wire.read(); 
+    }
 }
 
 bool initIMU()
 {
     Wire.begin(SDA_PIN, SCL_PIN);
 
-    if(!mpu.begin()) {
+    if (!mpu.begin()) {
         Serial.println("[IMU] MPU6050 NOT FOUND");
         return false;
     }
 
-    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-    mpu.setGyroRange(MPU6050_RANGE_500_DEG);
-    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-
-    // Setting Interupsi Motion
+    // --- KONFIGURASI REGISTER INTERRUPT MPU6050 (DIRECT REGISTER) ---
+    
+    // 1. High Pass Filter ke 0.63Hz
     mpu.setHighPassFilter(MPU6050_HIGHPASS_0_63_HZ);
-    mpu.setMotionDetectionThreshold(15); 
-    mpu.setMotionDetectionDuration(20);  
-    mpu.setInterruptPinLatch(false);    
-    mpu.setInterruptPinPolarity(true);  // Sinyal HIGH saat terpicu
-    mpu.setMotionInterrupt(true);
 
+    // 2. Register 0x37 (INT_PIN_CFG): Active LOW, Push-Pull, Latch Interrupt
+    writeMPURegister(0x37, 0xA0); 
+
+    // 3. Register 0x38 (INT_ENABLE): Aktifkan Motion Detection Interrupt
+    writeMPURegister(0x38, 0x40); 
+
+    // 4. THRESHOLD & DURATION DIUBAH AGAR SANGAT SENSITIF:
+    writeMPURegister(0x1F, 15);  // Nilai rekomendasi awal (32 mg/LSB)
+    writeMPURegister(0x20, 2);  // Durasi 1ms (Respon instan tanpa penundaan)
+
+    // --- KALIBRASI OFFSET (BOOTING AWAL) ---
     if (!isCalibrated) {
         Serial.println("[IMU] Calibrating Offsets...");
         const int SAMPLE = 100;
         float pitchSum = 0, rollSum = 0;
 
-        for(int i = 0; i < SAMPLE; i++) {
+        for (int i = 0; i < SAMPLE; i++) {
             sensors_event_t accel, gyro, temp;
             mpu.getEvent(&accel, &gyro, &temp);
 
@@ -89,6 +105,7 @@ IMUData readIMU()
     data.gz = gyro.gyro.z;
     data.temperature = temp.temperature;
 
+    // Saja diperbaiki: data.ax * data.ax
     float pitch = atan2(data.ay, sqrt(data.ax * data.ax + data.az * data.az)) * 180.0 / PI;
     float roll  = atan2(-data.ax, data.az) * 180.0 / PI;
 
