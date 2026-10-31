@@ -15,8 +15,8 @@ def generate_csv_response(session_id):
         output = io.StringIO()
         writer = csv.writer(output)
         
-        # Header CSV
-        writer.writerow(['ID', 'Waktu', 'Node ID', 'Counter', 'Roll (°)', 'Pitch (°)', 'Curah Hujan', 'Soil Moisture (%)', 'Temp (°C)', 'VBat (V)', 'RSSI (dBm)', 'SNR (dB)'])
+        # Header CSV (Menambahkan kolom 'Status Fuzzy')
+        writer.writerow(['ID', 'Waktu', 'Node ID', 'Counter', 'Roll (°)', 'Pitch (°)', 'Curah Hujan', 'Soil Moisture (%)', 'Temp (°C)', 'VBat (V)', 'RSSI (dBm)', 'SNR (dB)', 'Status Fuzzy'])
         writer.writerows(rows)
         
         output.seek(0)

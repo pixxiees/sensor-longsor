@@ -4,7 +4,7 @@ import exporter as exp
 
 app = Flask(__name__)
 
-# Inisialisasi tabel master saat aplikasi start
+# Inisialisasi tabel master & migrasi kolom saat aplikasi start
 db.init_db()
 
 @app.route('/api/data', methods=['POST'])

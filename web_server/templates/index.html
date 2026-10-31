@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EWS Tanah Longsor - Dashboard</title>
+    <title>Deteksi Tanah Longsor - Dashboard</title>
     <!-- Memuat Chart.js untuk grafik -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -15,16 +15,83 @@
             color: #333;
         }
 
+        /* HEADER JUDUL KIRI DAN STATUS KANAN */
+        .title-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid #800000;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+
         h1 {
             color: #800000;
-            border-bottom: 2px solid #800000;
-            padding-bottom: 10px;
-            text-align: center;
+            margin: 0;
+            font-size: 2.2em;
+        }
+
+        /* BADGE STATUS DENGAN TULISAN BESAR */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 22px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1.5em;
+            background-color: #ffffff;
+            box-shadow: 0 2px 3px rgba(0, 0, 0, 0.15);
+            border: 2px solid #ddd;
+        }
+
+        /* LINGKARAN WARNA INDIKATOR BESAR */
+        .status-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* WARNA STATUS */
+        .dot-waiting {
+            background-color: #6c757d;
+        }
+
+        .text-waiting {
+            color: #6c757d;
+        }
+
+        .dot-aman {
+            background-color: #28a745;
+            box-shadow: 0 0 10px #28a745;
+        }
+
+        .text-aman {
+            color: #28a745;
+        }
+
+        .dot-awas {
+            background-color: #f57c00;
+            box-shadow: 0 0 10px #f57c00;
+        }
+
+        .text-awas {
+            color: #f57c00;
+        }
+
+        .dot-bahaya {
+            background-color: #dc3545;
+            box-shadow: 0 0 10px #dc3545;
+        }
+
+        .text-bahaya {
+            color: #dc3545;
         }
 
         .header-info {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 0px;
             color: #666;
             font-size: 0.9em;
         }
@@ -218,21 +285,73 @@
         tr:hover {
             background-color: #f1f1f1;
         }
+
+        /* TAG TABEL RINGKAS */
+        .table-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .table-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
     </style>
 </head>
 
 <body>
-    <h1>Dashboard EWS Tanah Longsor</h1>
-
     {% set latest = sensor_data[0] if sensor_data else None %}
 
-    <div class="header-info" id="info-board">
-        {% if latest %}
-        Pembaruan Terakhir: <strong>{{ latest['waktu'] }}</strong> | Node ID: <strong>{{ latest['node_id'] }}</strong> |
-        Counter: <strong>{{ latest['counter'] }}</strong>
-        {% else %}
-        Menunggu data masuk...
-        {% endif %}
+    <!-- HEADER & STATUS SEJAJAR (KIRI - KANAN) -->
+    <div class="title-container">
+        <h1>Dashboard Deteksi Tanah Longsor</h1>
+
+        <div class="header-info" id="info-board">
+            {% if latest %}
+            Latest Update: <strong>{{ latest['waktu'] }}</strong> | Node ID: <strong>{{ latest['node_id']
+                }}</strong> |
+            Counter: <strong>{{ latest['counter'] }}</strong>
+            {% else %}
+            Menunggu data masuk...
+            {% endif %}
+        </div>
+
+        <div id="fuzzy-board">
+            {% if latest and latest['fuzzy_status'] %}
+            {% set status = latest['fuzzy_status']|upper %}
+            {% if status == 'AMAN' %}
+            <div class="status-badge">
+                <span class="status-dot dot-aman"></span>
+                <span class="text-aman">AMAN</span>
+            </div>
+            {% elif status in ['AWAS', 'WASPADA'] %}
+            <div class="status-badge">
+                <span class="status-dot dot-awas"></span>
+                <span class="text-awas">AWAS</span>
+            </div>
+            {% elif status == 'BAHAYA' %}
+            <div class="status-badge">
+                <span class="status-dot dot-bahaya"></span>
+                <span class="text-bahaya">BAHAYA</span>
+            </div>
+            {% else %}
+            <div class="status-badge">
+                <span class="status-dot dot-waiting"></span>
+                <span class="text-waiting">{{ status }}</span>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="status-badge">
+                <span class="status-dot dot-waiting"></span>
+                <span class="text-waiting">OFFLINE</span>
+            </div>
+            {% endif %}
+        </div>
     </div>
 
     <!-- KARTU STATUS -->
@@ -305,6 +424,7 @@
                     <th>Pitch (°)</th>
                     <th>Curah Hujan</th>
                     <th>Soil Moisture (%)</th>
+                    <th>Status Fuzzy</th>
                 </tr>
             </thead>
             <tbody id="tabel-body">
@@ -317,17 +437,32 @@
                     <td>{{ row['pitch'] }}</td>
                     <td>{{ row['rain'] }}</td>
                     <td>{{ row['soil_moisture'] }}</td>
+                    <td>
+                        {% set st = row['fuzzy_status']|upper if row['fuzzy_status'] else '-' %}
+                        {% if st == 'AMAN' %}
+                        <div class="table-badge"><span class="table-dot dot-aman"></span><span
+                                class="text-aman">AMAN</span></div>
+                        {% elif st in ['AWAS', 'WASPADA'] %}
+                        <div class="table-badge"><span class="table-dot dot-awas"></span><span
+                                class="text-awas">AWAS</span></div>
+                        {% elif st == 'BAHAYA' %}
+                        <div class="table-badge"><span class="table-dot dot-bahaya"></span><span
+                                class="text-bahaya">BAHAYA</span></div>
+                        {% else %}
+                        <span>{{ st }}</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% else %}
                 <tr id="row-kosong">
-                    <td colspan="7">Belum ada data sensor yang masuk.</td>
+                    <td colspan="8">Belum ada data sensor yang masuk.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
-    <!-- SCRIPT CHART & AUTO-RELOAD BEBAS ERROR -->
+    <!-- SCRIPT CHART & AUTO-RELOAD -->
     <script>
         // Inisialisasi Grafik
         const ctxKemiringan = document.getElementById('chartKemiringan').getContext('2d');
@@ -360,7 +495,6 @@
             }
         });
 
-        // Fungsi Pintar: Mengambil data grafik dengan membaca angka langsung dari Tabel HTML!
         function perbaruiGrafikDariTabel() {
             if (document.getElementById('row-kosong')) return;
 
@@ -369,8 +503,8 @@
 
             barisTabel.forEach(tr => {
                 const td = tr.querySelectorAll('td');
-                if (td.length === 7) {
-                    labels.push(td[0].innerText.split(' ')[1] || td[0].innerText); // Ambil jamnya
+                if (td.length >= 7) {
+                    labels.push(td[0].innerText.split(' ')[1] || td[0].innerText);
                     roll.push(parseFloat(td[3].innerText));
                     pitch.push(parseFloat(td[4].innerText));
                     rain.push(parseFloat(td[5].innerText));
@@ -400,6 +534,11 @@
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
 
+                    // Update Badge Status Fuzzy di sebelah kanan judul
+                    if (doc.getElementById('fuzzy-board')) {
+                        document.getElementById('fuzzy-board').innerHTML = doc.getElementById('fuzzy-board').innerHTML;
+                    }
+
                     const infoBaru = doc.getElementById('info-board').innerHTML;
                     if (infoBaru !== document.getElementById('info-board').innerHTML) {
                         document.getElementById('info-board').innerHTML = infoBaru;
@@ -415,12 +554,10 @@
                 .catch(err => console.log('Menunggu pembaruan jaringan...'));
         }, 3000);
 
-        // Fungsi Toggle Dropdown Menu Garis Tiga
         function toggleMenu() {
             document.getElementById('sessionMenu').classList.toggle('show');
         }
 
-        // Buat Session Baru
         function createNewSession() {
             let name = prompt("Masukkan nama session/database baru (opsional):");
             let formData = new FormData();
@@ -435,7 +572,6 @@
                 });
         }
 
-        // Hapus Session
         function deleteSession(sessionId) {
             if (confirm("Apakah Anda yakin ingin menghapus database session ini beserta seluruh datanya?")) {
                 fetch('/delete_session/' + sessionId, { method: 'POST' })
