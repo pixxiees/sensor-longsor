@@ -51,7 +51,8 @@ void startNewSession() {
     }
 }
 
-void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float temp, float vbat, float rssi, float snr) {
+// Fungsi dikembangkan dengan menambahkan parameter String fuzzy_status
+void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float temp, float vbat, float rssi, float snr, String fuzzy_status) {
     // Reconnect cepat jika koneksi WiFi terputus
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("[HTTP] WiFi terputus, mencoba reconnect cepat...");
@@ -66,7 +67,6 @@ void sendDataToServer(String node_id, int counter, float roll, float pitch, int 
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         
-        // Timeout diturunkan ke 2000ms agar penerimaan LoRa tidak terganggu lama
         http.setTimeout(2000); 
         http.begin(serverName);
         http.addHeader("Content-Type", "application/json");
@@ -82,10 +82,11 @@ void sendDataToServer(String node_id, int counter, float roll, float pitch, int 
         jsonPayload += "\"temp\":" + String(temp) + ",";
         jsonPayload += "\"vbat\":" + String(vbat) + ",";
         jsonPayload += "\"rssi\":" + String(rssi) + ",";
-        jsonPayload += "\"snr\":" + String(snr);
+        jsonPayload += "\"snr\":" + String(snr) + ",";
+        jsonPayload += "\"fuzzy_status\":\"" + fuzzy_status + "\""; // Kolom baru untuk indikator Web
         jsonPayload += "}";
 
-        Serial.printf("[HTTP] Mengirim Counter %d... ", counter);
+        Serial.printf("[HTTP] Mengirim Counter %d [%s]... ", counter, fuzzy_status.c_str());
         int httpResponseCode = http.POST(jsonPayload);
 
         if (httpResponseCode > 0) {

@@ -15,10 +15,6 @@
 #define RELAY_KUNING 2   // Channel 1: Lampu Kuning (Status AWAS)
 #define RELAY_MERAH  3   // Channel 2: Lampu Merah + Buzzer (Status BAHAYA)
 
-// ============================================================
-//  SOLUSI KHUSUS GPIO 2 & 3:
-//  Dibalik ke Active HIGH agar saat Standby (0V / LOW) Relay MATI TOTAL!
-// ============================================================
 #define RELAY_ON  HIGH
 #define RELAY_OFF LOW
 
@@ -68,10 +64,6 @@ void setup() {
     Serial.println("  Heltec V3 Lite Gateway (RX)   ");
     Serial.println("=================================");
     Serial.println("[SYSTEM] Fixing GPIO 2 & 3... OK (Relay Standby MATI)");
-
-    // ============================================================
-    //  INISIALISASI HARDWARE GATEWAY
-    // ============================================================
 
     // Daya VEXT untuk Chip LoRa SX1262
     pinMode(36, OUTPUT);
@@ -151,7 +143,6 @@ void loop() {
                 Serial.println("[PARSING] Succeed!");
 
                 // --- EKSEKUSI FUZZY LOGIC ---
-                // Mengambil nilai sudut kemiringan terbesar (kemiringan absolut)
                 float pergerakan_max = max(abs(roll), abs(pitch));
 
                 // Panggil fungsi fuzzy_logic.cpp
@@ -160,8 +151,16 @@ void loop() {
                 // Atur Relay sesuai hasil Fuzzy Logic
                 setWarningSystem(status_fuzzy);
 
-                // Kirim data ke PythonAnywhere Server
-                sendDataToServer(String(node_id), counter, roll, pitch, rain, soil, temp, vbat_calibrated, rssi, snr);
+                // Konversi nilai integer status_fuzzy ke Teks String
+                String strFuzzy = "AMAN";
+                if (status_fuzzy == 2) {
+                    strFuzzy = "AWAS";
+                } else if (status_fuzzy == 3) {
+                    strFuzzy = "BAHAYA";
+                }
+
+                // Kirim data lengkap beserta fuzzy_status ke PythonAnywhere Server
+                sendDataToServer(String(node_id), counter, roll, pitch, rain, soil, temp, vbat_calibrated, rssi, snr, strFuzzy);
             } else {
                 Serial.println("[PARSING] Failed! Format data tidak sesuai.");
             }
