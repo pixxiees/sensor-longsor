@@ -6,7 +6,7 @@
 void setupWiFi();
 void startNewSession();
 
-// Ditambahkan parameter fuzzy_status di bagian akhir
-void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float temp, float vbat, float rssi, float snr, String fuzzy_status);
+// Parameter vbat diganti dengan box_hum
+void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float box_temp, float box_hum, float rssi, float snr, String fuzzy_status);
 
-#endif // SERVER_HTTP_H
+#endif

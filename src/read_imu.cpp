@@ -55,8 +55,8 @@ bool initIMU()
     writeMPURegister(0x38, 0x40); 
 
     // 4. THRESHOLD & DURATION DIUBAH AGAR SANGAT SENSITIF:
-    writeMPURegister(0x1F, 15);  // Nilai rekomendasi awal (32 mg/LSB)
-    writeMPURegister(0x20, 2);  // Durasi 1ms (Respon instan tanpa penundaan)
+    writeMPURegister(0x1F, 27);  // Nilai rekomendasi awal (32 mg/LSB)
+    writeMPURegister(0x20, 7);  // Durasi 1ms (Respon instan tanpa penundaan)
 
     // --- KALIBRASI OFFSET (BOOTING AWAL) ---
     if (!isCalibrated) {

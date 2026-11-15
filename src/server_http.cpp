@@ -2,8 +2,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 
-const char* ssid = "bebek madura";
-const char* password = "kopihazel";
+const char* ssid = "pulau_putri_Plus";
+const char* password = "ArgisaPurnama28";
 const char* serverName = "http://pixxelee.pythonanywhere.com/api/data";
 
 void setupWiFi() {
@@ -51,8 +51,8 @@ void startNewSession() {
     }
 }
 
-// Fungsi dikembangkan dengan menambahkan parameter String fuzzy_status
-void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float temp, float vbat, float rssi, float snr, String fuzzy_status) {
+// Penyesuaian: Parameter vbat diganti dengan box_hum
+void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float box_temp, float box_hum, float rssi, float snr, String fuzzy_status) {
     // Reconnect cepat jika koneksi WiFi terputus
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("[HTTP] WiFi terputus, mencoba reconnect cepat...");
@@ -72,6 +72,7 @@ void sendDataToServer(String node_id, int counter, float roll, float pitch, int 
         http.addHeader("Content-Type", "application/json");
         http.addHeader("Connection", "close"); // Menutup TCP Socket setelah kirim
 
+        // Payload JSON baru: Parameter vbat digantikan oleh box_hum
         String jsonPayload = "{";
         jsonPayload += "\"node_id\":\"" + node_id + "\","; 
         jsonPayload += "\"counter\":" + String(counter) + ",";
@@ -79,11 +80,11 @@ void sendDataToServer(String node_id, int counter, float roll, float pitch, int 
         jsonPayload += "\"pitch\":" + String(pitch) + ",";
         jsonPayload += "\"rain\":" + String(rain) + ",";
         jsonPayload += "\"soil_moisture\":" + String(soil) + ",";
-        jsonPayload += "\"temp\":" + String(temp) + ",";
-        jsonPayload += "\"vbat\":" + String(vbat) + ",";
+        jsonPayload += "\"box_temp\":" + String(box_temp, 2) + ",";   // Suhu box dari SHT31
+        jsonPayload += "\"box_hum\":" + String(box_hum, 2) + ",";     // Kelembapan box dari SHT31
         jsonPayload += "\"rssi\":" + String(rssi) + ",";
         jsonPayload += "\"snr\":" + String(snr) + ",";
-        jsonPayload += "\"fuzzy_status\":\"" + fuzzy_status + "\""; // Kolom baru untuk indikator Web
+        jsonPayload += "\"fuzzy_status\":\"" + fuzzy_status + "\"";   // Status EWS (AMAN/AWAS/BAHAYA)
         jsonPayload += "}";
 
         Serial.printf("[HTTP] Mengirim Counter %d [%s]... ", counter, fuzzy_status.c_str());

@@ -127,20 +127,25 @@ void loop() {
             Serial.println(received);
 
             // Parsing data dari Node
+            // Format Payload Baru: NODE_1,counter,roll,pitch,rain,soil,box_temp,box_hum
             char node_id[20]; 
             int counter, rain;
-            float roll, pitch, soil, temp, vbat_raw;
+            float roll, pitch, soil, box_temp, box_hum;
             float rssi = radio.getRSSI();
             float snr = radio.getSNR();
 
             int parsed = sscanf(received.c_str(), "%19[^,],%d,%f,%f,%d,%f,%f,%f", 
-                                node_id, &counter, &roll, &pitch, &rain, &soil, &temp, &vbat_raw);
+                                node_id, &counter, &roll, &pitch, &rain, &soil, &box_temp, &box_hum);
 
             if (parsed == 8) {
-                // Kalibrasi tegangan baterai
-                float vbat_calibrated = vbat_raw * 1.799f;
-
                 Serial.println("[PARSING] Succeed!");
+                Serial.printf("Node       : %s\r\n", node_id);
+                Serial.printf("Counter    : %d\r\n", counter);
+                Serial.printf("Roll/Pitch : %.2f / %.2f\r\n", roll, pitch);
+                Serial.printf("Curah Hujan: %d mm\r\n", rain);
+                Serial.printf("Kelemb.Tanah: %.1f %%\r\n", soil);
+                Serial.printf("Suhu Box   : %.2f C\r\n", box_temp);
+                Serial.printf("RH Box     : %.2f %%\r\n", box_hum);
 
                 // --- EKSEKUSI FUZZY LOGIC ---
                 float pergerakan_max = max(abs(roll), abs(pitch));
@@ -159,8 +164,9 @@ void loop() {
                     strFuzzy = "BAHAYA";
                 }
 
-                // Kirim data lengkap beserta fuzzy_status ke PythonAnywhere Server
-                sendDataToServer(String(node_id), counter, roll, pitch, rain, soil, temp, vbat_calibrated, rssi, snr, strFuzzy);
+                // Kirim data lengkap ke PythonAnywhere Server
+                // Catatan: Parameter vbat digantikan oleh box_hum (kelembapan box)
+                sendDataToServer(String(node_id), counter, roll, pitch, rain, soil, box_temp, box_hum, rssi, snr, strFuzzy);
             } else {
                 Serial.println("[PARSING] Failed! Format data tidak sesuai.");
             }

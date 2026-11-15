@@ -5,9 +5,10 @@
 #include "read_imu.h"
 #include "read_soil.h"
 #include "read_rain.h"
+#include "read_sht.h" // Tambahkan header SHT31
 
 // --- KONFIGURASI DEEP SLEEP & INTERUPSI GPIO 4 ---
-#define TIME_TO_SLEEP  180         // Timer Deep Sleep 3 Menit
+#define TIME_TO_SLEEP  120         // Timer Deep Sleep 2 Menit (120 Detik)
 #define uS_TO_S_FACTOR 1000000ULL  
 #define ANOMALY_PIN    GPIO_NUM_4  // Pin Interrupt MPU6050
 
@@ -33,6 +34,7 @@ void setup()
     // Inisialisasi Hardware
     if (!initLoRa()) { Serial.println("[ERROR] LoRa Init Failed!"); }
     if (!initIMU())  { Serial.println("[ERROR] IMU Init Failed!"); }
+    if (!initSHT())  { Serial.println("[ERROR] SHT31 Init Failed!"); } // Init SHT31 I2C
     if (!initSoil()) { Serial.println("[ERROR] Soil Init Failed!"); }
     setupRain();
 
@@ -41,19 +43,20 @@ void setup()
     // Pembacaan Data Sensor
     float soil = readSoilPercent();
     IMUData imu = readIMU();
+    SHTData sht = readSHT(); // Baca Suhu & Kelembapan Box dari SHT31
     int jumlahTip = getRainTips();
-    float vbat = (analogRead(1) / 4095.0) * 3.3 * 3.2;
 
     // Print Debug Serial Monitor
     Serial.println("--------------------------------");
-    Serial.printf("Counter : %d\r\n", counter);
-    Serial.printf("SOIL    : %.1f %%\r\n", soil);
-    Serial.printf("Pitch   : %.2f\r\n", imu.pitch);
-    Serial.printf("Roll    : %.2f\r\n", imu.roll);
-    Serial.printf("Rain    : %d\r\n", jumlahTip);
-    Serial.printf("Baterai : %.2f V\r\n", vbat);
+    Serial.printf("Counter   : %d\r\n", counter);
+    Serial.printf("SOIL      : %.1f %%\r\n", soil);
+    Serial.printf("Pitch     : %.2f\r\n", imu.pitch);
+    Serial.printf("Roll      : %.2f\r\n", imu.roll);
+    Serial.printf("Rain      : %d\r\n", jumlahTip);
+    Serial.printf("Suhu Box  : %.2f C\r\n", sht.temperature);
+    Serial.printf("RH Box    : %.2f %%\r\n", sht.humidity);
 
-    // Rakit & Kirim Payload LoRa
+    // Format Payload Baru: NODE_1,counter,roll,pitch,rain,soil,box_temp,box_hum
     String payload = 
         String("NODE_1") + "," +                
         String(counter) + "," +                
@@ -61,8 +64,8 @@ void setup()
         String(imu.pitch, 2) + "," +           
         String(jumlahTip) + "," +              
         String(soil, 1) + "," +                
-        String(imu.temperature, 2) + "," +     
-        String(vbat, 2);                       
+        String(sht.temperature, 2) + "," +     
+        String(sht.humidity, 2);               
 
     Serial.print("[LoRa] Kirim Payload: ");
     Serial.println(payload);
@@ -91,7 +94,7 @@ void setup()
         Serial.println("[ERROR] GPIO 4 terbaca LOW (0V)! Cek kabel INT / Resistor Pull-Up ke 3.3V!");
     }
 
-    // 4. Konfigurasi Dual Wakeup (Timer 3 Menit + Trigger LOW (0) GPIO 4)
+    // 4. Konfigurasi Dual Wakeup (Timer 2 Menit + Trigger LOW (0) GPIO 4)
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
     esp_sleep_enable_ext0_wakeup(ANOMALY_PIN, 0); // Pemicu 0 (LOW)
 
