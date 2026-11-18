@@ -51,8 +51,7 @@ void startNewSession() {
     }
 }
 
-// Penyesuaian: Parameter vbat diganti dengan box_hum
-void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float box_temp, float box_hum, float rssi, float snr, String fuzzy_status) {
+void sendDataToServer(String node_id, int counter, float roll, float pitch, float yaw, int rain, float soil, float box_temp, float box_hum, float rssi, float snr, String fuzzy_status) {
     // Reconnect cepat jika koneksi WiFi terputus
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("[HTTP] WiFi terputus, mencoba reconnect cepat...");
@@ -70,21 +69,22 @@ void sendDataToServer(String node_id, int counter, float roll, float pitch, int 
         http.setTimeout(2000); 
         http.begin(serverName);
         http.addHeader("Content-Type", "application/json");
-        http.addHeader("Connection", "close"); // Menutup TCP Socket setelah kirim
+        http.addHeader("Connection", "close");
 
-        // Payload JSON baru: Parameter vbat digantikan oleh box_hum
+        // Payload JSON lengkap dengan Yaw
         String jsonPayload = "{";
         jsonPayload += "\"node_id\":\"" + node_id + "\","; 
         jsonPayload += "\"counter\":" + String(counter) + ",";
-        jsonPayload += "\"roll\":" + String(roll) + ",";
-        jsonPayload += "\"pitch\":" + String(pitch) + ",";
+        jsonPayload += "\"roll\":" + String(roll, 2) + ",";
+        jsonPayload += "\"pitch\":" + String(pitch, 2) + ",";
+        jsonPayload += "\"yaw\":" + String(yaw, 2) + ",";
         jsonPayload += "\"rain\":" + String(rain) + ",";
-        jsonPayload += "\"soil_moisture\":" + String(soil) + ",";
-        jsonPayload += "\"box_temp\":" + String(box_temp, 2) + ",";   // Suhu box dari SHT31
-        jsonPayload += "\"box_hum\":" + String(box_hum, 2) + ",";     // Kelembapan box dari SHT31
+        jsonPayload += "\"soil_moisture\":" + String(soil, 1) + ",";
+        jsonPayload += "\"box_temp\":" + String(box_temp, 2) + ",";
+        jsonPayload += "\"box_hum\":" + String(box_hum, 2) + ",";
         jsonPayload += "\"rssi\":" + String(rssi) + ",";
         jsonPayload += "\"snr\":" + String(snr) + ",";
-        jsonPayload += "\"fuzzy_status\":\"" + fuzzy_status + "\"";   // Status EWS (AMAN/AWAS/BAHAYA)
+        jsonPayload += "\"fuzzy_status\":\"" + fuzzy_status + "\"";
         jsonPayload += "}";
 
         Serial.printf("[HTTP] Mengirim Counter %d [%s]... ", counter, fuzzy_status.c_str());

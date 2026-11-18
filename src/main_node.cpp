@@ -8,7 +8,7 @@
 #include "read_sht.h" // Tambahkan header SHT31
 
 // --- KONFIGURASI DEEP SLEEP & INTERUPSI GPIO 4 ---
-#define TIME_TO_SLEEP  120         // Timer Deep Sleep 2 Menit (120 Detik)
+#define TIME_TO_SLEEP  10         // Timer Deep Sleep 2 Menit (120 Detik)
 #define uS_TO_S_FACTOR 1000000ULL  
 #define ANOMALY_PIN    GPIO_NUM_4  // Pin Interrupt MPU6050
 
@@ -55,8 +55,8 @@ void setup()
     Serial.printf("Rain      : %d\r\n", jumlahTip);
     Serial.printf("Suhu Box  : %.2f C\r\n", sht.temperature);
     Serial.printf("RH Box    : %.2f %%\r\n", sht.humidity);
-
-    // Format Payload Baru: NODE_1,counter,roll,pitch,rain,soil,box_temp,box_hum
+    
+   // Format Payload: NODE_1,counter,roll,pitch,rain,soil,box_temp,box_hum,yaw
     String payload = 
         String("NODE_1") + "," +                
         String(counter) + "," +                
@@ -65,7 +65,8 @@ void setup()
         String(jumlahTip) + "," +              
         String(soil, 1) + "," +                
         String(sht.temperature, 2) + "," +     
-        String(sht.humidity, 2);               
+        String(sht.humidity, 2) + "," +
+        String(imu.yaw, 2);      
 
     Serial.print("[LoRa] Kirim Payload: ");
     Serial.println(payload);

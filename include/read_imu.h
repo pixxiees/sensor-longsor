@@ -13,6 +13,7 @@ struct IMUData
 
     float pitch;
     float roll;
+    float yaw;
 
     float temperature;
 };

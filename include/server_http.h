@@ -6,7 +6,6 @@
 void setupWiFi();
 void startNewSession();
 
-// Parameter vbat diganti dengan box_hum
-void sendDataToServer(String node_id, int counter, float roll, float pitch, int rain, float soil, float box_temp, float box_hum, float rssi, float snr, String fuzzy_status);
+void sendDataToServer(String node_id, int counter, float roll, float pitch, float yaw, int rain, float soil, float box_temp, float box_hum, float rssi, float snr, String fuzzy_status);
 
 #endif

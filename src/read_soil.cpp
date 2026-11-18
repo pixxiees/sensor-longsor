@@ -35,9 +35,15 @@ float readSoilPercent()
     long sumADC = 0;
     for (int i = 0; i < 10; i++) {
         sumADC += analogRead(SOIL_PIN);
-        delay(2); // Delay sangat singkat untuk sampel yang stabil
+        delay(2);
     }
     int avgADC = sumADC / 10;
+
+    // Deteksi sensor tidak terpasang (floating ke GND < 500 atau ke 3.3V > 4050)
+    // Karena batas jenuh air kalibrasi = 1190, nilai < 500 pasti kabel terlepas
+    if (avgADC < 500 || avgADC > 4050) {
+        return 0.0f;
+    }
 
     // Konversi nilai ADC ke Persentase (0 - 100%)
     float moisture = map(avgADC,
@@ -46,7 +52,6 @@ float readSoilPercent()
                          0,
                          100);
 
-    // Batasi nilai agar berada di rentang presisi 0.0% - 100.0%
     moisture = constrain(moisture, 0.0f, 100.0f);
 
     return moisture;

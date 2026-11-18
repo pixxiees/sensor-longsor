@@ -8,14 +8,14 @@
 #define SCL_PIN 42
 #define MPU6050_ADDR 0x68
 
-// Deklarasi Objek MPU6050
 Adafruit_MPU6050 mpu;
 
 RTC_DATA_ATTR float pitchOffset = 0.0;
-RTC_DATA_ATTR float rollOffset = 0.0;
+RTC_DATA_ATTR float rollOffset  = 0.0;
+RTC_DATA_ATTR float gyroYOffset = 0.0;
+RTC_DATA_ATTR float currentYaw  = 0.0;
 RTC_DATA_ATTR bool isCalibrated = false;
 
-// Tulis Register Manual via I2C
 void writeMPURegister(uint8_t reg, uint8_t val) {
     Wire.beginTransmission(MPU6050_ADDR);
     Wire.write(reg);
@@ -23,7 +23,6 @@ void writeMPURegister(uint8_t reg, uint8_t val) {
     Wire.endTransmission();
 }
 
-// Clear Interrupt Latch via Baca Register 0x3A (INT_STATUS)
 void clearMPUInterrupt() {
     Wire.beginTransmission(MPU6050_ADDR);
     Wire.write(0x3A); 
@@ -43,26 +42,19 @@ bool initIMU()
         return false;
     }
 
-    // --- KONFIGURASI REGISTER INTERRUPT MPU6050 (DIRECT REGISTER) ---
-    
-    // 1. High Pass Filter ke 0.63Hz
-    mpu.setHighPassFilter(MPU6050_HIGHPASS_0_63_HZ);
+    // 1. MATIKAN High-Pass Filter dulu agar pembacaan gravitasi (DC) murni & stabil!
+    mpu.setHighPassFilter(MPU6050_HIGHPASS_DISABLE);
+    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+    delay(100);
 
-    // 2. Register 0x37 (INT_PIN_CFG): Active LOW, Push-Pull, Latch Interrupt
-    writeMPURegister(0x37, 0xA0); 
-
-    // 3. Register 0x38 (INT_ENABLE): Aktifkan Motion Detection Interrupt
-    writeMPURegister(0x38, 0x40); 
-
-    // 4. THRESHOLD & DURATION DIUBAH AGAR SANGAT SENSITIF:
-    writeMPURegister(0x1F, 27);  // Nilai rekomendasi awal (32 mg/LSB)
-    writeMPURegister(0x20, 7);  // Durasi 1ms (Respon instan tanpa penundaan)
-
-    // --- KALIBRASI OFFSET (BOOTING AWAL) ---
+    // --- KALIBRASI OFFSET SAAT BOOTING AWAL ---
     if (!isCalibrated) {
-        Serial.println("[IMU] Calibrating Offsets...");
+        Serial.println("[IMU] Tunggu 3 detik agar modul diam sebelum kalibrasi...");
+        delay(3000);
+
+        Serial.println("[IMU] Calibrating Offsets (Roll=Z, Pitch=X, Gravity=Y)...");
         const int SAMPLE = 100;
-        float pitchSum = 0, rollSum = 0;
+        float pitchSum = 0, rollSum = 0, gyroYSum = 0;
 
         for (int i = 0; i < SAMPLE; i++) {
             sensors_event_t accel, gyro, temp;
@@ -72,18 +64,29 @@ bool initIMU()
             float ay = accel.acceleration.y;
             float az = accel.acceleration.z;
 
-            float pitch = atan2(ay, sqrt(ax * ax + az * az)) * 180.0 / PI;
-            float roll  = atan2(-ax, az) * 180.0 / PI;
+            float roll  = atan2(az, ay) * 180.0 / PI;
+            float pitch = atan2(-ax, sqrt(ay * ay + az * az)) * 180.0 / PI;
 
+            rollSum  += roll;
             pitchSum += pitch;
-            rollSum += roll;
+            gyroYSum += gyro.gyro.y;
             delay(10);
         }
 
-        pitchOffset = pitchSum / SAMPLE;
-        rollOffset  = rollSum / SAMPLE;
+        rollOffset   = rollSum / SAMPLE;
+        pitchOffset  = pitchSum / SAMPLE;
+        gyroYOffset  = gyroYSum / SAMPLE;
+        currentYaw   = 0.0;
         isCalibrated = true;
+
+        Serial.printf("[IMU] Offset Tersimpan -> Roll: %.2f, Pitch: %.2f\r\n", rollOffset, pitchOffset);
     }
+
+    // 2. Konfigurasi Interrupt SETELAH kalibrasi selesai
+    writeMPURegister(0x37, 0x80); // Active LOW, Push-Pull, 50us Pulse
+    writeMPURegister(0x1F, 30);   // Motion Threshold ~60mg
+    writeMPURegister(0x20, 10);   // Duration 10ms
+    writeMPURegister(0x38, 0x40); // Enable Motion Interrupt
 
     clearMPUInterrupt();
     Serial.println("[IMU] READY");
@@ -95,23 +98,57 @@ IMUData readIMU()
     sensors_event_t accel, gyro, temp;
     IMUData data;
 
-    mpu.getEvent(&accel, &gyro, &temp);
+    // Pastikan DHPF mati saat membaca kemiringan statis agar tidak ada offset transien
+    mpu.setHighPassFilter(MPU6050_HIGHPASS_DISABLE);
+    delay(50);
 
-    data.ax = accel.acceleration.x;
-    data.ay = accel.acceleration.y;
-    data.az = accel.acceleration.z;
-    data.gx = gyro.gyro.x;
-    data.gy = gyro.gyro.y;
-    data.gz = gyro.gyro.z;
+    const int READ_SAMPLES = 30;
+    float sumAx = 0, sumAy = 0, sumAz = 0;
+    float sumGx = 0, sumGy = 0, sumGz = 0;
+
+    unsigned long prevTime = millis();
+
+    for (int i = 0; i < READ_SAMPLES; i++) {
+        mpu.getEvent(&accel, &gyro, &temp);
+        
+        unsigned long now = millis();
+        float dt = (now - prevTime) / 1000.0;
+        prevTime = now;
+
+        sumAx += accel.acceleration.x;
+        sumAy += accel.acceleration.y;
+        sumAz += accel.acceleration.z;
+        sumGx += gyro.gyro.x;
+        sumGy += gyro.gyro.y;
+        sumGz += gyro.gyro.z;
+
+        float rateYaw = (gyro.gyro.y - gyroYOffset) * 180.0 / PI;
+        if (abs(rateYaw) > 0.5) {
+            currentYaw += rateYaw * dt;
+        }
+
+        delay(2);
+    }
+
+    data.ax = sumAx / READ_SAMPLES;
+    data.ay = sumAy / READ_SAMPLES;
+    data.az = sumAz / READ_SAMPLES;
+    data.gx = sumGx / READ_SAMPLES;
+    data.gy = sumGy / READ_SAMPLES;
+    data.gz = sumGz / READ_SAMPLES;
     data.temperature = temp.temperature;
 
-    // Saja diperbaiki: data.ax * data.ax
-    float pitch = atan2(data.ay, sqrt(data.ax * data.ax + data.az * data.az)) * 180.0 / PI;
-    float roll  = atan2(-data.ax, data.az) * 180.0 / PI;
+    float roll  = atan2(data.az, data.ay) * 180.0 / PI;
+    float pitch = atan2(-data.ax, sqrt(data.ay * data.ay + data.az * data.az)) * 180.0 / PI;
 
-    data.pitch = pitch - pitchOffset;
     data.roll  = roll - rollOffset;
+    data.pitch = pitch - pitchOffset;
+    data.yaw   = currentYaw;
 
+    // Aktifkan kembali High-Pass Filter 0.63Hz HANYA untuk deteksi gerakan saat deep sleep
+    mpu.setHighPassFilter(MPU6050_HIGHPASS_0_63_HZ);
+    delay(20);
     clearMPUInterrupt();
+
     return data;
 }

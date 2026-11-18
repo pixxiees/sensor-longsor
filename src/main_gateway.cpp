@@ -128,24 +128,26 @@ void loop() {
 
             // Parsing data dari Node
             // Format Payload Baru: NODE_1,counter,roll,pitch,rain,soil,box_temp,box_hum
+            // Parsing data dari Node
+            // Format Payload Baru: NODE_1,counter,roll,pitch,rain,soil,box_temp,box_hum,yaw
             char node_id[20]; 
             int counter, rain;
-            float roll, pitch, soil, box_temp, box_hum;
+            float roll, pitch, soil, box_temp, box_hum, yaw;
             float rssi = radio.getRSSI();
             float snr = radio.getSNR();
 
-            int parsed = sscanf(received.c_str(), "%19[^,],%d,%f,%f,%d,%f,%f,%f", 
-                                node_id, &counter, &roll, &pitch, &rain, &soil, &box_temp, &box_hum);
+            int parsed = sscanf(received.c_str(), "%19[^,],%d,%f,%f,%d,%f,%f,%f,%f", 
+                                node_id, &counter, &roll, &pitch, &rain, &soil, &box_temp, &box_hum, &yaw);
 
-            if (parsed == 8) {
+            if (parsed == 9) {
                 Serial.println("[PARSING] Succeed!");
-                Serial.printf("Node       : %s\r\n", node_id);
-                Serial.printf("Counter    : %d\r\n", counter);
-                Serial.printf("Roll/Pitch : %.2f / %.2f\r\n", roll, pitch);
-                Serial.printf("Curah Hujan: %d mm\r\n", rain);
+                Serial.printf("Node        : %s\r\n", node_id);
+                Serial.printf("Counter     : %d\r\n", counter);
+                Serial.printf("R/P/Y       : %.2f / %.2f / %.2f\r\n", roll, pitch, yaw);
+                Serial.printf("Curah Hujan : %d mm\r\n", rain);
                 Serial.printf("Kelemb.Tanah: %.1f %%\r\n", soil);
-                Serial.printf("Suhu Box   : %.2f C\r\n", box_temp);
-                Serial.printf("RH Box     : %.2f %%\r\n", box_hum);
+                Serial.printf("Suhu Box    : %.2f C\r\n", box_temp);
+                Serial.printf("RH Box      : %.2f %%\r\n", box_hum);
 
                 // --- EKSEKUSI FUZZY LOGIC ---
                 float pergerakan_max = max(abs(roll), abs(pitch));
@@ -164,9 +166,7 @@ void loop() {
                     strFuzzy = "BAHAYA";
                 }
 
-                // Kirim data lengkap ke PythonAnywhere Server
-                // Catatan: Parameter vbat digantikan oleh box_hum (kelembapan box)
-                sendDataToServer(String(node_id), counter, roll, pitch, rain, soil, box_temp, box_hum, rssi, snr, strFuzzy);
+                sendDataToServer(String(node_id), counter, roll, pitch, yaw, rain, soil, box_temp, box_hum, rssi, snr, strFuzzy);
             } else {
                 Serial.println("[PARSING] Failed! Format data tidak sesuai.");
             }

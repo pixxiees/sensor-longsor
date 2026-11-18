@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deteksi Tanah Longsor - Dashboard</title>
-    <!-- Memuat Chart.js untuk grafik -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -15,7 +14,6 @@
             color: #333;
         }
 
-        /* HEADER JUDUL KIRI DAN STATUS KANAN */
         .title-container {
             display: flex;
             align-items: center;
@@ -31,7 +29,6 @@
             font-size: 2.2em;
         }
 
-        /* BADGE STATUS DENGAN TULISAN BESAR */
         .status-badge {
             display: inline-flex;
             align-items: center;
@@ -45,7 +42,6 @@
             border: 2px solid #ddd;
         }
 
-        /* LINGKARAN WARNA INDIKATOR BESAR */
         .status-dot {
             width: 18px;
             height: 18px;
@@ -53,7 +49,6 @@
             display: inline-block;
         }
 
-        /* WARNA STATUS */
         .dot-waiting {
             background-color: #6c757d;
         }
@@ -96,12 +91,17 @@
             font-size: 0.9em;
         }
 
-        /* KARTU STATUS */
         .status-container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
             margin-bottom: 30px;
+        }
+
+        @media (max-width: 992px) {
+            .status-container {
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            }
         }
 
         .status-card {
@@ -115,13 +115,13 @@
 
         .status-card h3 {
             margin: 0 0 10px 0;
-            font-size: 0.9em;
+            font-size: 0.85em;
             color: #666;
             text-transform: uppercase;
         }
 
         .status-card .value {
-            font-size: 1.8em;
+            font-size: 1.75em;
             font-weight: bold;
             color: #333;
         }
@@ -139,7 +139,6 @@
             color: #28a745;
         }
 
-        /* GRAFIK */
         .chart-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -160,7 +159,6 @@
             }
         }
 
-        /* BARIS KONTROL DI ATAS TABEL (MENU GARIS 3 & DOWNLOAD) */
         .table-controls {
             display: flex;
             justify-content: space-between;
@@ -190,7 +188,6 @@
             opacity: 0.9;
         }
 
-        /* DROPDOWN MENU KETIKA GARIS 3 DIKLIK */
         .dropdown-menu {
             display: none;
             position: absolute;
@@ -248,7 +245,6 @@
             font-weight: bold;
         }
 
-        /* TABEL SLIDING */
         .table-wrapper {
             max-height: 350px;
             overflow-y: auto;
@@ -286,7 +282,6 @@
             background-color: #f1f1f1;
         }
 
-        /* TAG TABEL RINGKAS */
         .table-badge {
             display: inline-flex;
             align-items: center;
@@ -307,14 +302,12 @@
 <body>
     {% set latest = sensor_data[0] if sensor_data else None %}
 
-    <!-- HEADER & STATUS SEJAJAR (KIRI - KANAN) -->
     <div class="title-container">
         <h1>Dashboard Deteksi Tanah Longsor</h1>
 
         <div class="header-info" id="info-board">
             {% if latest %}
-            Latest Update: <strong>{{ latest['waktu'] }}</strong> | Node ID: <strong>{{ latest['node_id']
-                }}</strong> |
+            Latest Update: <strong>{{ latest['waktu'] }}</strong> | Node ID: <strong>{{ latest['node_id'] }}</strong> |
             Counter: <strong>{{ latest['counter'] }}</strong>
             {% else %}
             Menunggu data masuk...
@@ -354,16 +347,22 @@
         </div>
     </div>
 
-    <!-- KARTU STATUS -->
     <div class="status-container" id="status-board">
         {% if latest %}
         <div class="status-card">
-            <h3>Suhu Node</h3>
-            <div class="value">{{ latest['temp'] }}<span class="unit"> °C</span></div>
+            <h3>Suhu Box</h3>
+            <div class="value">{{ latest['temp'] if latest['temp'] is not none else '-' }}<span class="unit"> °C</span>
+            </div>
         </div>
         <div class="status-card">
-            <h3>Baterai</h3>
-            <div class="value">{{ latest['vbat'] }}<span class="unit"> V</span></div>
+            <h3>Kelembapan Box</h3>
+            <div class="value">{{ latest['vbat'] if latest['vbat'] is not none else '-' }}<span class="unit"> %</span>
+            </div>
+        </div>
+        <div class="status-card">
+            <h3>Kelembapan Tanah</h3>
+            <div class="value">{{ latest['soil_moisture'] if latest['soil_moisture'] is not none else '-' }}<span
+                    class="unit"> %</span></div>
         </div>
         <div class="status-card">
             <h3>Sinyal (RSSI)</h3>
@@ -378,17 +377,14 @@
         {% endif %}
     </div>
 
-    <!-- AREA GRAFIK -->
     <div class="chart-container">
         <div class="chart-box"><canvas id="chartKemiringan"></canvas></div>
         <div class="chart-box"><canvas id="chartLingkungan"></canvas></div>
     </div>
 
-    <!-- KONTROL PADA TABEL (GARIS 3 & DOWNLOAD CSV) -->
     <div class="table-controls">
         <button class="menu-btn" onclick="toggleMenu()">☰ Menu Session</button>
 
-        <!-- DROPDOWN POPUP MENU -->
         <div class="dropdown-menu" id="sessionMenu">
             <form method="GET" action="/">
                 <label for="session_id">PILIH SESSION DATA:</label>
@@ -412,7 +408,6 @@
         {% endif %}
     </div>
 
-    <!-- AREA TABEL SLIDING -->
     <div class="table-wrapper">
         <table>
             <thead>
@@ -422,6 +417,7 @@
                     <th>Counter</th>
                     <th>Roll (°)</th>
                     <th>Pitch (°)</th>
+                    <th>Yaw (°)</th>
                     <th>Curah Hujan</th>
                     <th>Soil Moisture (%)</th>
                     <th>Status Fuzzy</th>
@@ -435,6 +431,7 @@
                     <td>{{ row['counter'] }}</td>
                     <td>{{ row['roll'] }}</td>
                     <td>{{ row['pitch'] }}</td>
+                    <td>{{ row['yaw'] if 'yaw' in row.keys() and row['yaw'] is not none else 0.0 }}</td>
                     <td>{{ row['rain'] }}</td>
                     <td>{{ row['soil_moisture'] }}</td>
                     <td>
@@ -455,39 +452,44 @@
                 </tr>
                 {% else %}
                 <tr id="row-kosong">
-                    <td colspan="8">Belum ada data sensor yang masuk.</td>
+                    <td colspan="9">Belum ada data sensor yang masuk.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
-    <!-- SCRIPT CHART & AUTO-RELOAD -->
     <script>
-        // Inisialisasi Grafik
         const ctxKemiringan = document.getElementById('chartKemiringan').getContext('2d');
         const chartKemiringan = new Chart(ctxKemiringan, {
             type: 'line',
             data: {
-                labels: [], datasets: [
+                labels: [],
+                datasets: [
                     { label: 'Pitch (°)', borderColor: '#800000', backgroundColor: 'rgba(128,0,0,0.1)', borderWidth: 2, fill: true, tension: 0.3, data: [] },
-                    { label: 'Roll (°)', borderColor: '#333333', borderWidth: 2, borderDash: [5, 5], tension: 0.3, data: [] }
+                    { label: 'Roll (°)', borderColor: '#333333', borderWidth: 2, borderDash: [5, 5], tension: 0.3, data: [] },
+                    { label: 'Yaw (°)', borderColor: '#007bff', borderWidth: 2, borderDash: [2, 2], tension: 0.3, data: [] }
                 ]
             },
-            options: { responsive: true, plugins: { title: { display: true, text: 'Tren Pergerakan Tanah (Akselerometer)' } } }
+            options: {
+                responsive: true,
+                plugins: { title: { display: true, text: 'Tren Pergerakan Tanah (Roll, Pitch, Yaw)' } }
+            }
         });
 
         const ctxLingkungan = document.getElementById('chartLingkungan').getContext('2d');
         const chartLingkungan = new Chart(ctxLingkungan, {
             type: 'bar',
             data: {
-                labels: [], datasets: [
+                labels: [],
+                datasets: [
                     { type: 'line', label: 'Kelembapan Tanah (%)', borderColor: '#28a745', borderWidth: 2, yAxisID: 'y', data: [] },
                     { type: 'bar', label: 'Curah Hujan (Tip)', backgroundColor: '#007bff', yAxisID: 'y1', data: [] }
                 ]
             },
             options: {
-                responsive: true, plugins: { title: { display: true, text: 'Korelasi Hujan & Kelembapan' } },
+                responsive: true,
+                plugins: { title: { display: true, text: 'Korelasi Hujan & Kelembapan' } },
                 scales: {
                     y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Kelembapan (%)' } },
                     y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Curah Hujan' } }
@@ -499,22 +501,24 @@
             if (document.getElementById('row-kosong')) return;
 
             const barisTabel = Array.from(document.querySelectorAll('#tabel-body tr')).reverse();
-            const labels = [], pitch = [], roll = [], rain = [], soil = [];
+            const labels = [], pitch = [], roll = [], yaw = [], rain = [], soil = [];
 
             barisTabel.forEach(tr => {
                 const td = tr.querySelectorAll('td');
-                if (td.length >= 7) {
+                if (td.length >= 8) {
                     labels.push(td[0].innerText.split(' ')[1] || td[0].innerText);
                     roll.push(parseFloat(td[3].innerText));
                     pitch.push(parseFloat(td[4].innerText));
-                    rain.push(parseFloat(td[5].innerText));
-                    soil.push(parseFloat(td[6].innerText));
+                    yaw.push(parseFloat(td[5].innerText));
+                    rain.push(parseFloat(td[6].innerText));
+                    soil.push(parseFloat(td[7].innerText));
                 }
             });
 
             chartKemiringan.data.labels = labels;
             chartKemiringan.data.datasets[0].data = pitch;
             chartKemiringan.data.datasets[1].data = roll;
+            chartKemiringan.data.datasets[2].data = yaw;
             chartKemiringan.update();
 
             chartLingkungan.data.labels = labels;
@@ -525,7 +529,6 @@
 
         perbaruiGrafikDariTabel();
 
-        // Auto-Reload (AJAX) - Tanpa Kedip
         setInterval(() => {
             const urlBebasCache = window.location.href.split('?')[0] + '?t=' + new Date().getTime();
             fetch(urlBebasCache, { cache: "no-store" })
@@ -534,7 +537,6 @@
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
 
-                    // Update Badge Status Fuzzy di sebelah kanan judul
                     if (doc.getElementById('fuzzy-board')) {
                         document.getElementById('fuzzy-board').innerHTML = doc.getElementById('fuzzy-board').innerHTML;
                     }

@@ -29,12 +29,12 @@ def create_new_session(name=None):
         cursor = conn.execute("INSERT INTO sessions (session_name) VALUES (?)", (name,))
         session_id = cursor.lastrowid
 
-        # Membuat tabel dinamis khusus dengan kolom fuzzy_status
+        # Membuat tabel dinamis dengan kolom yaw dan fuzzy_status
         conn.execute(f'''
             CREATE TABLE IF NOT EXISTS data_session_{session_id} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 waktu TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                node_id TEXT, counter INT, roll REAL, pitch REAL,
+                node_id TEXT, counter INT, roll REAL, pitch REAL, yaw REAL,
                 rain INT, soil_moisture REAL, temp REAL, vbat REAL,
                 rssi REAL, snr REAL, fuzzy_status TEXT
             )
@@ -48,25 +48,27 @@ def save_gateway_data(data):
         cursor = conn.execute("SELECT id FROM sessions ORDER BY id DESC LIMIT 1")
         active = cursor.fetchone()
 
-        # Jika belum pernah ada sesi sama sekali di awal, baru buatkan
         session_id = active['id'] if active else create_new_session()
 
-        # Otomatis menambahkan kolom fuzzy_status jika tabel dibuat sebelum update
-        try:
-            conn.execute(f"ALTER TABLE data_session_{session_id} ADD COLUMN fuzzy_status TEXT")
-        except sqlite3.OperationalError:
-            pass # Kolom sudah ada
+        # Otomatis menambahkan kolom jika tabel dibuat sebelum update
+        for col_def in ["fuzzy_status TEXT", "yaw REAL DEFAULT 0.0"]:
+            try:
+                conn.execute(f"ALTER TABLE data_session_{session_id} ADD COLUMN {col_def}")
+            except sqlite3.OperationalError:
+                pass
 
-        # Ambil status fuzzy dari payload (default 'AMAN' jika kosong)
         fuzzy_status = data.get('fuzzy_status', 'AMAN')
+        yaw_val = data.get('yaw', 0.0)
+        box_temp = data.get('box_temp', data.get('temp'))
+        box_hum = data.get('box_hum', data.get('vbat'))
 
         conn.execute(f'''
             INSERT INTO data_session_{session_id}
-            (node_id, counter, roll, pitch, rain, soil_moisture, temp, vbat, rssi, snr, fuzzy_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (node_id, counter, roll, pitch, yaw, rain, soil_moisture, temp, vbat, rssi, snr, fuzzy_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
-            data.get('node_id'), data.get('counter'), data.get('roll'), data.get('pitch'),
-            data.get('rain'), data.get('soil_moisture'), data.get('temp'), data.get('vbat'),
+            data.get('node_id'), data.get('counter'), data.get('roll'), data.get('pitch'), yaw_val,
+            data.get('rain'), data.get('soil_moisture'), box_temp, box_hum,
             data.get('rssi'), data.get('snr'), fuzzy_status
         ))
         conn.commit()
